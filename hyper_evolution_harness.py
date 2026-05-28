@@ -1,8 +1,5 @@
 import os
 import sys
-# Programmatic self-discovery pathing: unblocks any nested shell execution nodes
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import subprocess
 import time
 import re
@@ -70,7 +67,8 @@ def run_generation(gen_id):
     
     print(f"\n{'='*80}\n[MASTER GENERATION {gen_id}/5] LAUNCHING DEEP 1500-ROUND OPTIMIZATION FLIGHT\n{'='*80}")
     
-    cmd = [venv_python, 'src/main.py', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
+    # Standardized Module Flag Optimization (-m src.main) eliminates import errors natively
+    cmd = [venv_python, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
     ret = stream_flight(cmd, log_path)
     if ret != 0:
         raise Exception(f"Optimization flight crashed with code {ret}")
@@ -78,7 +76,7 @@ def run_generation(gen_id):
     self_refactor_engine(log_path)
 
     print("[Validation] Running ExpansionManager reference diagnostics...")
-    subprocess.run([venv_python, 'src/main.py', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
+    subprocess.run([venv_python, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     
     if os.path.exists('tests/test_stress.py'):
         subprocess.run(['pytest', 'tests/test_stress.py'], check=True, env=env)

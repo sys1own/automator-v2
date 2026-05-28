@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Optional
 from multiprocessing import Process, shared_memory
 import numpy as np
 
-# Fixed: Fully qualified absolute import namespaces
+# Fully qualified absolute import namespaces kept intact
 from src.vfs.cow_overlay import MvccSnapshotRegistry
 from src.automator.shard_worker import ShardWorkerProcess
 
@@ -36,6 +36,7 @@ class LockFreeSharedMemoryQueue:
             except FileNotFoundError:
                 pass
             self.shm = shared_memory.SharedMemory(name=self.name, create=True, size=self.total_size)
+            self.buffer_view = self.shm.buf  # FIXED: Bound prior to head/tail serialization updates
             self._write_head(0)
             self._write_tail(0)
         else:

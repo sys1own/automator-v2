@@ -8,21 +8,21 @@ import time
 import re
 
 def stream_flight(cmd, log_path):
-    """High-throughput line-streaming multiplexer injecting PYTHONPATH metadata."""
+    """High-throughput line-streaming multiplexer inheriting parent env configurations."""
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     
-    # Capture parent environment tables and inject root tracking path
     env = os.environ.copy()
-    env["PYTHONPATH"] = os.getcwd()
-    
-    with open(log_path, 'w') as log_file: # Fresh write per generation flight
+    if "PYTHONPATH" not in env:
+        env["PYTHONPATH"] = os.getcwd()
+        
+    with open(log_path, 'w') as log_file:
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=env # Enforce environmental baseline across background workers
+            env=env
         )
         for line in iter(process.stdout.readline, ''):
             sys.stdout.write(line)
@@ -74,37 +74,34 @@ def run_generation(gen_id):
     
     print(f"\n{'='*80}\n[MASTER GENERATION {gen_id}/5] LAUNCHING DEEP 1500-ROUND OPTIMIZATION FLIGHT\n{'='*80}")
     
-    # 1. High-Throughput Matrix Execution Sweep
     cmd = [venv_python, 'src/main.py', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
     ret = stream_flight(cmd, log_path)
     if ret != 0:
         raise Exception(f"Optimization flight crashed with code {ret}")
 
-    # 2. Automated Self-Refactoring
     self_refactor_engine(log_path)
 
-    # 3. Systems Validation Passes
-    print("[Validation] Running ExpansionManager and reference boundary diagnostics...")
+    print("[Validation] Running ExpansionManager reference diagnostics...")
     subprocess.run([venv_python, 'src/main.py', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     
     if os.path.exists('tests/test_stress.py'):
-        print("[Validation] Running stress regression tests...")
         subprocess.run(['pytest', 'tests/test_stress.py'], check=True, env=env)
 
-    # 4. Freeze Token-Compressed State
-    print("[Validation] Compressing and archiving updated codebase layout...")
     subprocess.run(['python', 'bundle_repo.py'], check=True, env=env)
 
 if __name__ == '__main__':
     start_time = time.time()
     try:
-        for g in range(1, 3):
+        # Scale through all 5 deep production generations
+        for g in range(1, 6):
             run_generation(g)
         print(f"\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s")
     except KeyboardInterrupt:
         print("\n[HALT] Manual override detected.")
+        sys.exit(1)
     except Exception as e:
         print(f"\n[HALT] Critical failure: {e}")
+        sys.exit(1) # CRITICAL: Terminate with non-zero exit code to alert GitHub Actions
 
 
 --- FILE: test_env.py ---

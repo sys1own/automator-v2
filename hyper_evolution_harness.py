@@ -5,9 +5,9 @@ import time
 import re
 
 def stream_flight(cmd, log_path):
-    """High-throughput line-streaming multiplexer to capture engine telemetry."""
+    """High-throughput line-streaming multiplexer to log telemetry bounds."""
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    with open(log_path, 'w') as log_file: # Fresh write per generation to preserve tokens
+    with open(log_path, 'w') as log_file: # Fresh file per pass to conserve tokens
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -24,7 +24,7 @@ def stream_flight(cmd, log_path):
         return process.wait()
 
 def self_refactor_engine(log_path):
-    """Parses metrics and updates substrate_engine.py __init__ defaults natively."""
+    """Parses metrics and updates substrate_engine.py class defaults natively."""
     print(f'\n[Refactor] Parsing structural trajectory logs: {log_path}')
     try:
         with open(log_path, 'r') as f:
@@ -37,7 +37,7 @@ def self_refactor_engine(log_path):
                 break
         
         if not last_round:
-            print("[Refactor] WARNING: Final tracking parameters not found.")
+            print("[Refactor] WARNING: Historical convergence benchmarks not located.")
             return
 
         v_match = re.search(r"Velocity EMA: ([0-9.]+)", last_round)
@@ -66,7 +66,7 @@ def run_generation(gen_id):
     
     print(f"\n{'='*80}\n[MASTER GENERATION {gen_id}/5] LAUNCHING DEEP 1500-ROUND OPTIMIZATION FLIGHT\n{'='*80}")
     
-    # 1. High-Throughput Matrix Execution Sweep
+    # 1. High-Throughput Matrix Execution Sweep (Runs for 2-3 minutes per generation)
     cmd = [venv_python, 'src/main.py', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
     ret = stream_flight(cmd, log_path)
     if ret != 0:

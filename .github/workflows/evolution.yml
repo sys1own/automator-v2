@@ -2,7 +2,7 @@ name: Cloud Evolution Factory
 
 on:
   schedule:
-    - cron: '*/20 * * * *'  # High-frequency 20min cycle
+    - cron: '*/20 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -28,19 +28,19 @@ jobs:
         pip install jax jaxlib numpy pytest
         pip install -e .
 
-    - name: Clean Telemetry Buffers
-      run: rm -f context/automator_execution.log
-
     - name: Execute 5-Generation Evolution Harness
       run: python hyper_evolution_harness.py
+
+    - name: Context Compression & Bundling
+      run: python bundle_repo.py
 
     - name: Autonomous Graduation & State Push
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        
+
         git add src/ tasks.json repo_context_bundle.txt
-        
+
         if ! git diff --cached --quiet; then
           git commit -m "auto(evolution): graduate converged architectural state [skip ci]"
           git push

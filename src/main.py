@@ -25,7 +25,7 @@ def run_controller(config_path, rounds, lr):
     for r in range(1, rounds + 1):
         vdf_seed = f'epoch_{r}_{engine.velocity_ema}'.encode()
         y, proof = vdf_engine.evaluate_and_prove(vdf_seed, 64)
-        pacing_queue.submit_verification(r, vdf_seed, 1024, y, proof, vdf_callback)
+        pacing_queue.submit_verification(r, vdf_seed, 64, y, proof, vdf_callback)
 
         reward = np.random.random()
         engine.execute_accelerated_step(lr, reward)

@@ -12,7 +12,7 @@ jobs:
   evolve:
     runs-on: ubuntu-latest
     env:
-      PYTHONPATH: ${{ github.workspace }} # FIXED: Injects global absolute pathing natively
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Checkout Evolving Repository Branch
         uses: actions/checkout@v4
@@ -47,14 +47,14 @@ jobs:
           git add src/automator/substrate_engine.py tasks.json repo_context_bundle.txt
           
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No evolutionary adjustments detected."
           else
             git commit -m "auto(evolution): update convergence thresholds and step optimization [skip ci]"
             
-            # Dynamic rebase and pull to clear out race condition rejections
-            git fetch origin
-            git rebase origin/${{ github.ref_name }} || (git rebase --skip)
+            # Fetch remote changes and rebase local commits to prevent non-fast-forward rejections
+            echo "Synchronizing with remote origin main timeline..."
+            git pull --rebase origin ${{ github.ref_name }}
             
-            # Secure upstream checkout push mapping
+            # Atomic upstream reference update
             git push origin HEAD:${{ github.ref_name }}
           fi

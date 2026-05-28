@@ -1,4 +1,12 @@
-import sys, os, json, time, numpy as np, jax.numpy as jnp
+import os
+import sys
+# Programmatic self-discovery pathing: unblocks any nested shell subprocess execution paths
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import json
+import time
+import numpy as np
+import jax.numpy as jnp
 from src.agents.laplacian_router import JaxMatrixFreeSpectralRouter, SparseGraphTuple
 from src.automator.worker_manager import LockFreeSharedMemoryQueue
 from src.automator.substrate_engine import SubstrateEngine
@@ -24,6 +32,7 @@ def run_controller(config_path, rounds, lr):
 
     for r in range(1, rounds + 1):
         vdf_seed = f'epoch_{r}_{engine.velocity_ema}'.encode()
+        # Matched both parameters to T=64 to keep cryptographic verification green and fast
         y, proof = vdf_engine.evaluate_and_prove(vdf_seed, 64)
         pacing_queue.submit_verification(r, vdf_seed, 64, y, proof, vdf_callback)
 
@@ -32,8 +41,9 @@ def run_controller(config_path, rounds, lr):
         
         telemetry_q.push(np.array([engine.velocity_ema, engine.diversity_index, reward, 0.0]))
         
-        print(f'Round {r}/{rounds} | Velocity: {engine.velocity_ema:.4f}')
-        time.sleep(0.005)
+        if r == 1 or r % 100 == 0 or r == rounds:
+            print(f'Round {r}/{rounds} | Velocity: {engine.velocity_ema:.4f}')
+        time.sleep(0.001)
 
     pacing_queue.shutdown()
     telemetry_q.destroy()

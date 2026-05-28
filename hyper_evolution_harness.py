@@ -1,13 +1,14 @@
 import os
-import subprocess
 import sys
+# Programmatic self-discovery pathing: unblocks child package tracking
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import subprocess
 import time
 import re
 
 def stream_flight(cmd, log_path):
-    """High-throughput line-streaming multiplexer inheriting parent env configurations."""
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
-    
     env = os.environ.copy()
     if "PYTHONPATH" not in env:
         env["PYTHONPATH"] = os.getcwd()
@@ -30,7 +31,6 @@ def stream_flight(cmd, log_path):
         return process.wait()
 
 def self_refactor_engine(log_path):
-    """Parses metrics and updates substrate_engine.py class defaults natively."""
     print(f'\n[Refactor] Parsing structural trajectory logs: {log_path}')
     try:
         with open(log_path, 'r') as f:
@@ -65,7 +65,6 @@ def self_refactor_engine(log_path):
 def run_generation(gen_id):
     venv_python = 'python'
     log_path = 'context/automator_execution.log'
-    
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
     
@@ -89,7 +88,6 @@ def run_generation(gen_id):
 if __name__ == '__main__':
     start_time = time.time()
     try:
-        # Scale through all 5 deep production generations
         for g in range(1, 6):
             run_generation(g)
         print(f"\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s")
@@ -98,4 +96,4 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         print(f"\n[HALT] Critical failure: {e}")
-        sys.exit(1) # CRITICAL: Terminate with non-zero exit code to alert GitHub Actions
+        sys.exit(1) # Propagates failures straight up to the GitHub Runner shell

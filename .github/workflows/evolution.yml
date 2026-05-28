@@ -11,8 +11,6 @@ permissions:
 jobs:
   evolve:
     runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Checkout Evolving Repository Branch
         uses: actions/checkout@v4
@@ -47,14 +45,10 @@ jobs:
           git add src/automator/substrate_engine.py tasks.json repo_context_bundle.txt
           
           if git diff --staged --quiet; then
-            echo "No evolutionary adjustments detected."
+            echo "No changes to commit."
           else
             git commit -m "auto(evolution): update convergence thresholds and step optimization [skip ci]"
-            
-            # Fetch remote changes and rebase local commits to prevent non-fast-forward rejections
-            echo "Synchronizing with remote origin main timeline..."
+            echo "Healing branch history concurrency variations..."
             git pull --rebase origin ${{ github.ref_name }}
-            
-            # Atomic upstream reference update
             git push origin HEAD:${{ github.ref_name }}
           fi

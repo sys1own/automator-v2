@@ -1,9 +1,9 @@
-name: Autonomous Evolution Driver
+name: Cloud Evolution Factory
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Executes daily at midnight
-  workflow_dispatch:     # Allows manual trigger via GitHub UI
+    - cron: '*/20 * * * *'  # High-frequency 20min cycle
+  workflow_dispatch:
 
 jobs:
   evolution-flight:
@@ -21,39 +21,30 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-        cache: 'pip'
 
-    - name: Install Framework Core
+    - name: Install System Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
-        pip install jax jaxlib numpy scipy psutil
+        pip install jax jaxlib numpy pytest
+        pip install -e .
 
-    - name: Execute Evolutionary Flight
-      run: |
-        # Purge stale logs to ensure fresh telemetry harvesting
-        rm -f context/automator_execution.log
-        # Launch the high-throughput 5-generation harness
-        python hyper_evolution_harness.py
+    - name: Clean Telemetry Buffers
+      run: rm -f context/automator_execution.log
 
-    - name: Context Compression & Bundling
-      run: |
-        # Generate token-optimized workspace snapshot
-        python bundle_repo.py
+    - name: Execute 5-Generation Evolution Harness
+      run: python hyper_evolution_harness.py
 
-    - name: Autonomous Codebase Graduation
+    - name: Autonomous Graduation & State Push
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         
-        # Stage structural improvements and converged parameters
         git add src/ tasks.json repo_context_bundle.txt
         
-        # Only commit if actual delta is detected
         if ! git diff --cached --quiet; then
-          git commit -m "auto(evolution): converge codebase state V=4.6005 [skip ci]"
+          git commit -m "auto(evolution): graduate converged architectural state [skip ci]"
           git push
-          echo "[Success] Evolved state graduated to repository."
+          echo "[Success] Evolution state pushed to origin."
         else
-          echo "[Status] No architectural drift detected; skipping commit."
+          echo "[Status] No architectural drift; skipping commit."
         fi

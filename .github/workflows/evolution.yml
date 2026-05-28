@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install numpy jax jaxlib pytest
 
-      - name: Execute High-Volume Multi-Generation Optimization Loop
+      - name: Execute High-Throughput Multi-Generation Optimization Loop
         run: |
           rm -f context/automator_execution.log
           python hyper_evolution_harness.py
@@ -48,5 +48,14 @@ jobs:
             echo "No evolutionary modifications detected during this run cycle."
           else
             git commit -m "auto(evolution): update convergence thresholds and step optimization [skip ci]"
+            
+            # Synchronize with remote changes right before pushing
+            echo "Fetching remote updates to resolve concurrency gaps..."
+            git fetch origin
+            
+            # Rebase our automated commit on top of any parallel remote changes
+            git rebase origin/${{ github.ref_name }} || (git rebase --skip)
+            
+            # Direct atomic upstream update push
             git push origin HEAD:${{ github.ref_name }}
           fi

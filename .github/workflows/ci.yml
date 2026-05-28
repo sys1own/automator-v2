@@ -2,36 +2,32 @@ name: Gatekeeper Validation CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, master, dev ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main, master, dev ]
 
 jobs:
-  validate-substrate:
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
+      - name: Checkout Code Baseline
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-        cache: 'pip'
+      - name: Initialize Runtime Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[dev]
-        pip install jax jaxlib pytest numpy
+      - name: Install Architecture Core Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy jax jaxlib pytest
 
-    - name: Pre-Expansion Boundary Check
-      run: |
-        # Verify no circular import deadlocks or structural faults
-        python src/main.py --input tasks.json --max-rounds 1
+      - name: Verify Structural Integrity Boundaries
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          python src/main.py --input tasks.json --max-rounds 1
 
-    - name: Global Regression Testing
-      run: |
-        # Execute stress test suite to verify JAX/XLA stability
-        pytest tests/test_stress.py
+      - name: Run Regression Stress Tests
+        run: |
+          pytest tests/test_stress.py

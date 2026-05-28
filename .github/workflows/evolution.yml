@@ -1,50 +1,52 @@
-name: Cloud Evolution Factory
+name: Continuous Evolution Factory
 
 on:
   schedule:
     - cron: '*/20 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  evolution-flight:
+  evolve:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout Evolving Repository Branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Initialize Execution Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Install System Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install jax jaxlib numpy pytest
-        pip install -e .
+      - name: Install Acceleration Packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy jax jaxlib pytest
 
-    - name: Execute 5-Generation Evolution Harness
-      run: python hyper_evolution_harness.py
+      - name: Execute High-Volume Multi-Generation Optimization Loop
+        run: |
+          rm -f context/automator_execution.log
+          python hyper_evolution_harness.py
 
-    - name: Context Compression & Bundling
-      run: python bundle_repo.py
+      - name: Run Token Compressor
+        run: |
+          python bundle_repo.py
 
-    - name: Autonomous Graduation & State Push
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-        git add src/ tasks.json repo_context_bundle.txt
-
-        if ! git diff --cached --quiet; then
-          git commit -m "auto(evolution): graduate converged architectural state [skip ci]"
-          git push
-          echo "[Success] Evolution state pushed to origin."
-        else
-          echo "[Status] No architectural drift; skipping commit."
-        fi
+      - name: Autonomous Code Graduation Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add src/automator/substrate_engine.py tasks.json repo_context_bundle.txt
+          
+          if git diff --staged --quiet; then
+            echo "No evolutionary modifications detected during this run cycle."
+          else
+            git commit -m "auto(evolution): update convergence thresholds and step optimization [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi

@@ -4527,7 +4527,7 @@ Round 1500/1500 | Velocity: 4.8976
 --- FILE: automator-v2/hyper_evolution_harness.py ---
 import os
 import sys
-# Programmatic self-discovery pathing: unblocks child package tracking
+# Programmatic self-discovery pathing: unblocks any nested shell execution nodes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import subprocess
@@ -4623,7 +4623,7 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         print(f"\n[HALT] Critical failure: {e}")
-        sys.exit(1) # Propagates failures straight up to the GitHub Runner shell
+        sys.exit(1)
 
 
 --- FILE: automator-v2/pyproject.toml ---
@@ -5168,7 +5168,7 @@ if __name__ == '__main__':
 --- FILE: automator-v2/src/main.py ---
 import os
 import sys
-# Programmatic self-discovery pathing: unblocks any nested shell subprocess execution paths
+# Bulletproof path injection: Forces Python to recognize the 'src' directory on any machine
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
@@ -5200,7 +5200,6 @@ def run_controller(config_path, rounds, lr):
 
     for r in range(1, rounds + 1):
         vdf_seed = f'epoch_{r}_{engine.velocity_ema}'.encode()
-        # Matched both parameters to T=64 to keep cryptographic verification green and fast
         y, proof = vdf_engine.evaluate_and_prove(vdf_seed, 64)
         pacing_queue.submit_verification(r, vdf_seed, 64, y, proof, vdf_callback)
 

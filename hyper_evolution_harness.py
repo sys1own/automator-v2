@@ -1,6 +1,6 @@
 import os
 import sys
-# Programmatic self-discovery pathing: unblocks child package tracking
+# Programmatic self-discovery pathing: unblocks any nested shell execution nodes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import subprocess
@@ -96,4 +96,4 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         print(f"\n[HALT] Critical failure: {e}")
-        sys.exit(1) # Propagates failures straight up to the GitHub Runner shell
+        sys.exit(1)

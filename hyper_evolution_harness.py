@@ -1,6 +1,5 @@
 import os
 import sys
-# Programmatic self-discovery pathing: unblocks child package tracking
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import subprocess
@@ -32,45 +31,52 @@ def stream_flight(cmd, log_path):
 
 def execute_intra_run_ast_mutation(gen_id):
     """
-    Track 3: Meta-Evolutionary Structural Synthesis Engine.
-    Programmatically morphs code branches and injects machine learning features 
-    directly between optimization generations to advance macro architecture complexity.
+    Generalized Macro Mutator: Dynamically targets and transforms engine 
+    architectures using robust patterns that resist string variations.
     """
-    print(f'\\n[AST Synthesis] Generation {gen_id} cleared. Injecting macro-structural logic branches...')
+    print(f'\\n[AST Synthesis] Generation {gen_id} cleared. Scanning for structural code expansions...')
     engine_path = 'src/automator/substrate_engine.py'
     functional_path = 'src/automator/action_functional.py'
     
     if not os.path.exists(engine_path) or not os.path.exists(functional_path):
         return
 
-    # Generation 1 Clear: Synthesize an absolute weight clipping guard to prevent parameter explosion
+    # Generation 1 Upgrade: Inject an adaptive clipping layer into the active optimization flow
     if gen_id == 1:
         with open(functional_path, 'r') as f: content = f.read()
         if "jnp.clip" not in content:
-            print("[AST Mutation] Level 1: Appending hard bounded XLA parameter clipping constraints.")
-            content = content.replace("return jnp.maximum(weights + delta, floor)", 
-                                      "return jnp.clip(weights + delta, floor, 10.0)")
+            print("[AST Mutation] Level 1 -> Appending functional XLA parameter clipping bounds.")
+            content = re.sub(
+                r"return\s+jnp\.maximum\(([^,]+),\s*floor\)",
+                r"return jnp.clip(\1 + delta, floor, 12.0)",
+                content
+            )
             with open(functional_path, 'w') as f: f.write(content)
 
-    # Generation 2 Clear: Synthesize a Stochastic Bernoulli Dropout mask to clear edge over-fitting
+    # Generation 2 Upgrade: Append an autonomous Bernoulli Dropout layer into the weight mapping step
     elif gen_id == 2:
         with open(engine_path, 'r') as f: content = f.read()
         if "bernoulli" not in content:
-            print("[AST Mutation] Level 2: Injecting functional JAX Bernoulli Dropout mask layers.")
-            content = content.replace("self.velocity_ema = float(new_w)",
-                                      "mask = jax.random.bernoulli(jax.random.PRNGKey(int(time.time())), 0.98)\\n        self.velocity_ema = float(new_w * mask)")
-            # Add missing import metadata hooks if necessary
+            print("[AST Mutation] Level 2 -> Injecting functional JAX Bernoulli Dropout mask layers.")
+            content = re.sub(
+                r"self\.velocity_ema\s*=\s*float\(([^)]+)\)",
+                r"mask = jax.random.bernoulli(jax.random.PRNGKey(int(time.time())), 0.98)\\n        self.velocity_ema = float(\1 * mask)",
+                content
+            )
             if "import jax" not in content:
                 content = "import jax\\n" + content
             with open(engine_path, 'w') as f: f.write(content)
 
-    # Generation 3 Clear: Synthesize adaptive learning rate momentum metrics
+    # Generation 3 Upgrade: Append a structural execution dampening profile to stabilize long iterations
     elif gen_id == 3:
         with open(functional_path, 'r') as f: content = f.read()
-        if "grad_factor" in content and "0.9" not in content:
-            print("[AST Mutation] Level 3: Overwriting Straight-Through Estimators with Momentum decay.")
-            content = content.replace("return lr * reward * grad", 
-                                      "return lr * reward * grad * 0.9")
+        if "0.95" not in content and "grad" in content:
+            print("[AST Mutation] Level 3 -> Appending structural decay coefficients.")
+            content = re.sub(
+                r"return\s+lr\s*\*+([^\\n]+)",
+                r"return lr * \1 * 0.95",
+                content
+            )
             with open(functional_path, 'w') as f: f.write(content)
 
 def self_refactor_engine(log_path):
@@ -134,10 +140,10 @@ if __name__ == '__main__':
     try:
         for g in range(1, 6):
             run_generation(g)
-        print(f\"\\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s\")
+        print(f"\\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s")
     except KeyboardInterrupt:
         print(\"\\n[HALT] Manual override detected.\")
         sys.exit(1)
     except Exception as e:
-        print(f\"\\n[HALT] Critical failure: {e}\")
+        print(f"\\n[HALT] Critical failure: {e}")
         sys.exit(1)

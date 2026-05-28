@@ -1,4 +1,3 @@
-
 import hashlib
 import concurrent.futures
 from typing import List, Tuple, Optional, Callable
@@ -6,7 +5,7 @@ from typing import List, Tuple, Optional, Callable
 class PietrzakVDFEngine:
     """
     Implements Pietrzak's Verifiable Delay Function.
-    Features checkpoint-assisted proof generation and logarithmic-time verification.
+    Features dynamic sub-sequence checkpoint generation and logarithmic-time verification.
     """
     def __init__(self):
         # Secure 2048-bit RSA Modulus N of unknown order.
@@ -21,29 +20,35 @@ class PietrzakVDFEngine:
         assert (T & (T - 1)) == 0, "Steps parameter T must be a power of 2."
         x = int.from_bytes(hashlib.sha256(seed).digest(), 'big') % self.N
         
-        checkpoints = []
+        # 1. Compute sequential terminal value y
         curr = x
         for _ in range(T):
-            checkpoints.append(curr)
             curr = pow(curr, 2, self.N)
         y = curr
         
         proof = []
         
-        def build_proof_recursive(x_in: int, y_in: int, t_steps: int, offset: int):
+        # 2. Recursive halving proof generation with dynamic midpoint generation
+        def build_proof_recursive(x_in: int, y_in: int, t_steps: int):
             if t_steps == 1:
                 return
             half_t = t_steps // 2
-            mid_val = checkpoints[offset + half_t]
-            proof.append(mid_val)
             
+            # Correctly compute the midpoint of the CURRENT active sequence
+            mid_val = x_in
+            for _ in range(half_t):
+                mid_val = pow(mid_val, 2, self.N)
+                
+            proof.append(mid_val)
             r = self._derive_projection_challenge(x_in, y_in, mid_val)
+            
+            # Form coordinates for next recursive verification layer
             x_next = (pow(x_in, r, self.N) * mid_val) % self.N
             y_next = (pow(mid_val, r, self.N) * y_in) % self.N
             
-            build_proof_recursive(x_next, y_next, half_t, offset + half_t)
+            build_proof_recursive(x_next, y_next, half_t)
 
-        build_proof_recursive(x, y, T, 0)
+        build_proof_recursive(x, y, T)
         return y, proof
 
     def verify_proof(self, seed: bytes, T: int, y: int, proof: List[int]) -> bool:
@@ -73,7 +78,6 @@ class AsynchronousPacingQueue:
         self.active_jobs: List[concurrent.futures.Future] = []
 
     def submit_verification(self, round_id: int, seed: bytes, T: int, y: int, proof: List[int], callback: Callable[[int, bool], None]):
-        """Submits a Pietrzak verification task to the thread pool."""
         def task_wrapper() -> Tuple[int, bool]:
             success = self.engine.verify_proof(seed, T, y, proof)
             return round_id, success

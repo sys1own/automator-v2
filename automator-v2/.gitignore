@@ -1,6 +1,0 @@
-venv/
-__pycache__/
-*.pyc
-.config/
-sample_data/
-context/automator_execution.log

@@ -70,12 +70,25 @@ def run_controller(config_path, rounds, lr):
         # Base acceleration step
         engine.execute_accelerated_step(lr, reward)
 
-        # Execute dynamically discovered extensions autonomously
+        # Mixture-of-Experts residual ensemble: every expert proposes its
+        # delta independently against the SAME baseline velocity, then we
+        # apply the mean of the valid deltas as one combined residual step.
+        # Averaging (rather than cascading in-place) stops any single expert
+        # from compounding on top of another and protects parameter variance.
+        baseline_velocity = engine.velocity_ema
+        expert_deltas = []
         for ext_fn in dynamic_extensions:
             try:
-                engine.velocity_ema = float(ext_fn(engine.velocity_ema, reward, lr))
+                proposed = float(ext_fn(baseline_velocity, reward, lr))
             except Exception:
-                pass
+                continue
+            delta = proposed - baseline_velocity
+            if np.isfinite(delta):
+                expert_deltas.append(delta)
+
+        if expert_deltas:
+            mean_residual = float(np.mean(expert_deltas))
+            engine.velocity_ema = baseline_velocity + mean_residual
 
         telemetry_q.push(np.array([engine.velocity_ema, engine.diversity_index, reward, 0.0]))
 

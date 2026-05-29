@@ -5,6 +5,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subprocess
 import time
 import re
+import ast
+import shutil
+import tempfile
 
 def stream_flight(cmd, log_path):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -29,6 +32,97 @@ def stream_flight(cmd, log_path):
         process.stdout.close()
         return process.wait()
 
+def _gate1_static_verification(code, label):
+    """Gate 1 -- formal static verification via ast.parse + compile.
+
+    Rejects SyntaxError / IndentationError (IndentationError is a subclass of
+    SyntaxError) before anything executes. A NameError is a runtime fault that
+    the compiler cannot detect, so it is deliberately deferred to Gate 2.
+    """
+    try:
+        ast.parse(code)
+        compile(code, label, "exec")
+        return True, None
+    except (SyntaxError, ValueError) as exc:
+        return False, exc
+
+
+def _gate2_dynamic_sandbox(target_rel, code, root, rounds=2):
+    """Gate 2 -- dynamic sandbox execution in throwaway isolation.
+
+    Copies the project into a temp directory, swaps in the candidate module,
+    and runs the real controller for `rounds` rounds. The production tree is
+    never touched. Passing requires exit code 0, at least `rounds` async VDF
+    verification frames, and no FATAL verification failures.
+    """
+    sandbox = tempfile.mkdtemp(prefix="guardian_")
+    try:
+        shutil.copytree(os.path.join(root, "src"), os.path.join(sandbox, "src"),
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copy(os.path.join(root, "tasks.json"), os.path.join(sandbox, "tasks.json"))
+        with open(os.path.join(sandbox, target_rel), "w") as fh:
+            fh.write(code)
+        env = os.environ.copy()
+        env["PYTHONPATH"] = sandbox
+        proc = subprocess.run(
+            ["python", "-m", "src.main", "--input", "tasks.json", "--max-rounds", str(rounds)],
+            cwd=sandbox, env=env, capture_output=True, text=True, timeout=180
+        )
+        frames = proc.stdout.count("verified asynchronously")
+        passed = proc.returncode == 0 and frames >= rounds and "FATAL" not in proc.stdout
+        return passed, proc, frames
+    except subprocess.TimeoutExpired as exc:
+        return False, exc, 0
+    finally:
+        shutil.rmtree(sandbox, ignore_errors=True)
+
+
+def guarded_graduate(prod_path, mutated_code, rounds=2):
+    """Double-Gate Guardian Isolation Protocol for source self-mutation.
+
+    Writes the candidate to a quarantine file ('<module>.tmp'), then requires
+    BOTH Gate 1 (static ast/compile) and Gate 2 (isolated dynamic flight) to
+    approve before graduating it onto the production module via an atomic
+    os.replace(). If either gate rejects, the production file is left
+    byte-for-byte intact and the quarantine file is removed. Returns True only
+    when the mutation is graduated.
+    """
+    root = os.path.dirname(os.path.abspath(__file__))
+    prod_abs = os.path.abspath(prod_path)
+    target_rel = os.path.relpath(prod_abs, root)
+    quarantine = prod_abs + ".tmp"
+
+    with open(quarantine, "w") as fh:
+        fh.write(mutated_code)
+    try:
+        ok1, err1 = _gate1_static_verification(mutated_code, quarantine)
+        if not ok1:
+            print("[Guardian] GATE 1 (static) REJECTED %s: %s: %s"
+                  % (target_rel, type(err1).__name__, err1))
+            return False
+        print("[Guardian] Gate 1 (ast.parse/compile) PASSED for %s" % target_rel)
+
+        ok2, proc, frames = _gate2_dynamic_sandbox(target_rel, mutated_code, root, rounds)
+        if not ok2:
+            exit_code = getattr(proc, "returncode", "TIMEOUT")
+            print("[Guardian] GATE 2 (sandbox flight) REJECTED %s: exit=%s vdf_frames=%s"
+                  % (target_rel, exit_code, frames))
+            stderr_tail = (getattr(proc, "stderr", "") or "")[-600:]
+            if stderr_tail:
+                print(stderr_tail)
+            return False
+        print("[Guardian] Gate 2 (isolated %d-round flight) PASSED for %s: exit=0, %d VDF frames"
+              % (rounds, target_rel, frames))
+
+        os.replace(quarantine, prod_abs)
+        print("[Guardian] GRADUATED mutation into %s via atomic move" % target_rel)
+        return True
+    finally:
+        if os.path.exists(quarantine):
+            os.remove(quarantine)
+            print("[Guardian] Quarantine cleaned: %s.tmp" % target_rel)
+
+
 def execute_intra_run_ast_mutation(gen_id):
     """
     Generalized Macro Mutator: Dynamically targets and transforms engine 
@@ -51,7 +145,7 @@ def execute_intra_run_ast_mutation(gen_id):
                 r"return jnp.clip(\1 + delta, floor, 12.0)",
                 content
             )
-            with open(functional_path, 'w') as f: f.write(content)
+            guarded_graduate(functional_path, content)
 
     # Generation 2 Upgrade: Append an autonomous Bernoulli Dropout layer into the weight mapping step
     elif gen_id == 2:
@@ -65,7 +159,7 @@ def execute_intra_run_ast_mutation(gen_id):
             )
             if "import jax\n" not in content:
                 content = "import jax\n" + content
-            with open(engine_path, 'w') as f: f.write(content)
+            guarded_graduate(engine_path, content)
 
     # Generation 3 Upgrade: Append a structural execution dampening profile to stabilize long iterations
     elif gen_id == 3:
@@ -77,7 +171,7 @@ def execute_intra_run_ast_mutation(gen_id):
                 r"return lr * \1 * 0.95",
                 content
             )
-            with open(functional_path, 'w') as f: f.write(content)
+            guarded_graduate(functional_path, content)
 
 def self_refactor_engine(log_path):
     print(f'\\n[Refactor] Parsing structural trajectory logs: {log_path}')
@@ -105,9 +199,10 @@ def self_refactor_engine(log_path):
             
             content = re.sub(r"self.velocity_ema = [0-9.]+", f"self.velocity_ema = {new_v}", content)
             
-            with open(engine_path, 'w') as f:
-                f.write(content)
-            print(f"[Refactor] SUCCESS: Hardcoded engine parameters: V={new_v}")
+            if guarded_graduate(engine_path, content):
+                print(f"[Refactor] SUCCESS: Hardcoded engine parameters: V={new_v}")
+            else:
+                print(f"[Refactor] ABORTED: guardian rejected V={new_v}; production preserved")
     except Exception as e:
         print(f"[Refactor] ERROR: Mechanical parameters update failed: {e}")
 

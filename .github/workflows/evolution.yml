@@ -1,55 +1,38 @@
-name: Continuous Evolution Factory
+name: Autonomous Framework Evolution Flow
 
 on:
   schedule:
-    - cron: '*/20 * * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    - cron: '*/20 * * * *' # Triggers automatically every 20 minutes
+  workflow_dispatch:      # Allows you to manually click "Run workflow" in GitHub UI
 
 jobs:
-  evolve:
+  evolve-substrate:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout Evolving Repository Branch
+      - name: Checkout Repository State
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Crucial: Keeps authentication token persisted in local git config 
+          # so your python subprocess can push updates back up to origin.
+          persist-credentials: true 
 
-      - name: Initialize Execution Environment
+      - name: Initialize Python Environment
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.10'
 
-      - name: Install Acceleration Packages
+      - name: Materialize Runtime Framework Dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install numpy jax jaxlib pytest
+          pip install numpy jax jaxlib scipy psutil pytest typing-extensions
 
-      - name: Execute High-Throughput Multi-Generation Optimization Loop
+      - name: Configure Automated Git Run Identity
         run: |
-          rm -f context/automator_execution.log
-          python hyper_evolution_harness.py
-
-      - name: Run Token Compressor
-        run: |
-          python bundle_repo.py
-
-      - name: Autonomous Code Graduation Push
-        run: |
-          git config --global user.name "github-actions[bot]"
+          # Pro-Tip: Using the official GitHub Action Bot credentials 
+          # attributes the commits directly to your GitHub Action run cleanly.
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
-          # Include the persistent evolution_state json file into git tracking tracking loops
-          git add src/ context/evolution_state.json tasks.json repo_context_bundle.txt
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "auto(evolution): propagate unbounded structural upgrades [skip ci]"
-            echo "Healing branch history concurrency variations..."
-            git pull --rebase origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }}
-          fi
+          git config --global user.name "github-actions[bot]"
+
+      - name: Run Multi-Stage Optimization Flight
+        run: |
+          python hyper_evolution_harness.py

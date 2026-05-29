@@ -3,7 +3,11 @@ name: Autonomous Framework Evolution Flow
 on:
   schedule:
     - cron: '*/20 * * * *' # Triggers automatically every 20 minutes
-  workflow_dispatch:      # Allows you to manually click "Run workflow" in GitHub UI
+  workflow_dispatch:      # Allows manual trigger via GitHub UI
+
+# THE CRUCIAL FIX: Explicitly allow the workflow runner to write back to the repo
+permissions:
+  contents: write
 
 jobs:
   evolve-substrate:
@@ -13,8 +17,6 @@ jobs:
       - name: Checkout Repository State
         uses: actions/checkout@v4
         with:
-          # Crucial: Keeps authentication token persisted in local git config 
-          # so your python subprocess can push updates back up to origin.
           persist-credentials: true 
 
       - name: Initialize Python Environment
@@ -28,8 +30,6 @@ jobs:
 
       - name: Configure Automated Git Run Identity
         run: |
-          # Pro-Tip: Using the official GitHub Action Bot credentials 
-          # attributes the commits directly to your GitHub Action run cleanly.
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 

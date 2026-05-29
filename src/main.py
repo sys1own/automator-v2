@@ -1,6 +1,5 @@
 import os
 import sys
-# Resolved: Removed 'import importfile' stray typo
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
@@ -65,12 +64,18 @@ def run_controller(config_path, rounds, lr):
         # Base acceleration step
         engine.execute_accelerated_step(lr, reward)
         
-        # Execute dynamically discovered extensions autonomously
-        for ext_fn in dynamic_extensions:
-            try:
-                engine.velocity_ema = float(ext_fn(engine.velocity_ema, reward, lr))
-            except Exception:
-                pass
+        # FIXED: Execute extensions via parallel expert residual aggregation to protect state variance
+        if dynamic_extensions:
+            deltas = []
+            for ext_fn in dynamic_extensions:
+                try:
+                    predicted_v = float(ext_fn(engine.velocity_ema, reward, lr))
+                    deltas.append(predicted_v - engine.velocity_ema)
+                except Exception:
+                    pass
+            
+            if deltas:
+                engine.velocity_ema += float(np.mean(deltas))
         
         telemetry_q.push(np.array([engine.velocity_ema, engine.diversity_index, reward, 0.0]))
         

@@ -275,6 +275,21 @@ def run_generation():
     if ret != 0: raise Exception(f"Flight crashed with status code {ret}")
 
     current_v = self_refactor_engine('context/automator_execution.log')
+    
+    # FIXED: Natural Selection Sieve. If the last flight tanked, prune the asset that caused it.
+    if current_v and state["best_velocity"] > 0 and current_v < (state["best_velocity"] * 0.40):
+        print(f"\n[Natural Selection Guard] Performance degraded to {current_v}. Pruning underperforming predecessor...")
+        if state["mutation_history"]:
+            last_mutation = state["mutation_history"][-1]
+            match = re.search(r'(ext_[\w_]+\.py)', last_mutation.get("action", ""))
+            if match:
+                target_file = match.group(1)
+                prune_path = os.path.join("src", "extensions", target_file)
+                if os.path.exists(prune_path):
+                    os.remove(prune_path)
+                    print(f"[Pruned] Evicted regressive code asset: {target_file}")
+                last_mutation["action"] = f"PRUNED due to performance degradation (Velocity: {current_v})"
+
     action_taken = spawn_purpose_driven_module(gen_id)
     print(f"[Result] {action_taken}")
     
@@ -289,7 +304,6 @@ def run_generation():
     subprocess.run([sys.executable, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     subprocess.run(['python', 'bundle_repo.py'], check=True, env=env)
     
-    # Fully Autonomous Git Synchronizer Layer
     try:
         subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'], check=True, env=env)
         subprocess.run(['git', 'commit', '-m', f"evolution(core): generation {gen_id} structured state sync"], check=True, env=env)

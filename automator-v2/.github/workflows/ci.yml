@@ -1,0 +1,33 @@
+name: Gatekeeper Validation CI
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Baseline
+        uses: actions/checkout@v4
+
+      - name: Initialize Runtime Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Architecture Core Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy jax jaxlib pytest
+
+      - name: Verify Structural Integrity Boundaries
+        run: |
+          export PYTHONPATH=$GITHUB_WORKSPACE
+          python src/main.py --input tasks.json --max-rounds 1
+
+      - name: Run Regression Stress Tests
+        run: |
+          pytest tests/test_stress.py

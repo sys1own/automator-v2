@@ -2,7 +2,7 @@
 import os
 
 def bundle_repo(output_file='repo_context_bundle.txt'):
-    repo_root = '/content'
+    repo_root = os.path.dirname(os.path.abspath(__file__))
     exclude_dirs = {'.config', 'sample_data', 'venv', '__pycache__', '.git', 'autonomous_building_framework.egg-info'}
 
     with open(output_file, 'w') as out:

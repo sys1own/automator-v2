@@ -60,11 +60,11 @@ def execute_intra_run_ast_mutation(gen_id):
             print("[AST Mutation] Level 2 -> Injecting functional JAX Bernoulli Dropout mask layers.")
             content = re.sub(
                 r"self\.velocity_ema\s*=\s*float\(([^)]+)\)",
-                r"mask = jax.random.bernoulli(jax.random.PRNGKey(int(time.time())), 0.98)\\n        self.velocity_ema = float(\1 * mask)",
+                r"mask = jax.random.bernoulli(jax.random.PRNGKey(int(np.random.randint(0, 100000))), 0.98)\n        self.velocity_ema = float(\1 * mask)",
                 content
             )
-            if "import jax" not in content:
-                content = "import jax\\n" + content
+            if "import jax\n" not in content:
+                content = "import jax\n" + content
             with open(engine_path, 'w') as f: f.write(content)
 
     # Generation 3 Upgrade: Append a structural execution dampening profile to stabilize long iterations

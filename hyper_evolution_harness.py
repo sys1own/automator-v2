@@ -6,6 +6,34 @@ import subprocess
 import time
 import re
 import ast
+import json
+import numpy as np
+
+STATE_FILE = "context/evolution_state.json"
+
+def load_evolution_state():
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "global_generation": 0,
+        "best_velocity": 0.0,
+        "mutation_history": [],
+        "active_parameters": {
+            "learning_rate_modifier": 1.0,
+            "decay_coefficient": 0.95,
+            "clipping_ceiling": 12.0,
+            "dropout_rate": 0.98
+        }
+    }
+
+def save_evolution_state(state):
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=4)
 
 def stream_flight(cmd, log_path):
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -31,24 +59,17 @@ def stream_flight(cmd, log_path):
         return process.wait()
 
 def verify_gate_isolation(file_path, target_mutation_content):
-    """
-    Double-Gate Guardian: Writes changes to a quarantine container file,
-    verifying syntactic correctness and behavioral safety before graduation.
-    """
     tmp_path = file_path + ".tmp"
     try:
-        # Write to sandboxed quarantine file
         with open(tmp_path, "w") as f:
             f.write(target_mutation_content)
             
-        # GATE 1: Formal Static Verification & Abstract Syntax Tree Compilation Check
         ast.parse(target_mutation_content)
         compile(target_mutation_content, tmp_path, "exec")
         
-        # GATE 2: Dynamic Behavioral Verification Run
         env = os.environ.copy()
         env["PYTHONPATH"] = os.getcwd()
-        # Backup the production file, temporarily swap in the mutation, test, and swap back
+        
         os.rename(file_path, file_path + ".bak")
         os.rename(tmp_path, file_path)
         
@@ -57,7 +78,6 @@ def verify_gate_isolation(file_path, target_mutation_content):
             capture_output=True, text=True, env=env
         )
         
-        # Restore production baseline status
         os.rename(file_path, tmp_path)
         os.rename(file_path + ".bak", file_path)
         
@@ -66,59 +86,92 @@ def verify_gate_isolation(file_path, target_mutation_content):
             print(f"[Guardian Gate Passed] Atomic graduation completed for: {file_path}")
             return True
         else:
-            print(f"[Guardian GATE 2 FAILED] Dynamic verification threw exit code {test_run.returncode}. Aborting mutation.")
+            print(f"[Guardian GATE 2 FAILED] Exit code {test_run.returncode}. Discarding variant.")
             if os.path.exists(tmp_path): os.remove(tmp_path)
             return False
             
     except Exception as e:
-        print(f"[Guardian GATE 1 FAILED] Formal Compilation Crash: {e}. Aborting mutation.")
+        print(f"[Guardian GATE 1 FAILED] Compilation Crash: {e}. Discarding variant.")
         if os.path.exists(tmp_path): os.remove(tmp_path)
         if os.path.exists(file_path + ".bak"): os.rename(file_path + ".bak", file_path)
         return False
 
-def execute_intra_run_ast_mutation(gen_id):
-    print(f"\n[AST Synthesis] Generation {gen_id} cleared. Initializing guardian validation gates...")
-    engine_path = 'src/automator/substrate_engine.py'
+def generate_procedural_mutation(state):
+    """
+    Stochastic Code Synthesis Core: Instead of hardcoded strings, this engine
+    dynamically explores code permutations, inventing mathematical operations,
+    tuning parameter configurations, and injecting algorithmic changes.
+    """
     functional_path = 'src/automator/action_functional.py'
+    engine_path = 'src/automator/substrate_engine.py'
     
-    if not os.path.exists(engine_path) or not os.path.exists(functional_path):
-        return
+    if not os.path.exists(functional_path) or not os.path.exists(engine_path):
+        return "No action taken (missing target files)"
 
-    # Generation 1 Upgrade: Inject an adaptive parameter clipping layer
-    if gen_id == 1:
+    mutation_types = ["tune_hyperparameters", "inject_activation_variant", "evolve_gradient_formula"]
+    chosen_type = np.random.choice(mutation_types)
+    log_msg = f"Mutation Type: {chosen_type} | "
+
+    if chosen_type == "tune_hyperparameters":
+        # Procedurally adjust continuous coefficients via random walks
+        params = state["active_parameters"]
+        params["learning_rate_modifier"] *= float(np.random.uniform(0.85, 1.15))
+        params["decay_coefficient"] = float(np.clip(params["decay_coefficient"] * np.random.uniform(0.9, 1.1), 0.5, 0.999))
+        params["clipping_ceiling"] = float(np.clip(params["clipping_ceiling"] + np.random.uniform(-2.0, 2.0), 1.0, 50.0))
+        
         with open(functional_path, 'r') as f: content = f.read()
-        if "jnp.clip" not in content:
-            mutated = re.sub(
-                r"return\s+jnp\.maximum\(([^,]+),\s*floor\)",
-                r"return jnp.clip(\1 + delta, floor, 12.0)",
-                content
-            )
-            verify_gate_isolation(functional_path, mutated)
+        
+        # Rewrite the optimization gradient multiplier procedurally based on updated parameters
+        content = re.sub(
+            r"return lr \* reward \* grad \* [0-9.]+",
+            f"return lr * reward * grad * {params['decay_coefficient']:.6f}",
+            content
+        )
+        content = re.sub(
+            r"floor,\s*[0-9.]+\)",
+            f"floor, {params['clipping_ceiling']:.2f})",
+            content
+        )
+        
+        if verify_gate_isolation(functional_path, content):
+            log_msg += f"Updated hyperparameters to: {params}"
+            return log_msg
 
-    # Generation 2 Upgrade: Append a JAX-native Bernoulli Dropout mask layer
-    elif gen_id == 2:
-        with open(engine_path, 'r') as f: content = f.read()
-        if "bernoulli" not in content:
-            # FIXED: Seeded using a secure NumPy array integer call to eliminate missing 'time' module crashes
-            mutated = re.sub(
-                r"self\.velocity_ema\s*=\s*float\(([^)]+)\)",
-                r"mask = jax.random.bernoulli(jax.random.PRNGKey(int(np.random.randint(0, 100000)))), 0.98)\n        self.velocity_ema = float(\1 * mask)",
-                content
-            )
-            if "import jax" not in content:
-                mutated = "import jax\n" + mutated
-            verify_gate_isolation(engine_path, mutated)
-
-    # Generation 3 Upgrade: Append an optimization decay constant
-    elif gen_id == 3:
+    elif chosen_type == "inject_activation_variant":
+        # Procedurally experiment with algebraic combinations of JAX non-linear activation functions
+        activations = ["jnp.tanh(w)", "jnp.sin(w)", "jnp.cos(w)", "1.0 / (1.0 + jnp.exp(-w))", "(w * jnp.tanh(w))"]
+        chosen_act = np.random.choice(activations)
+        
         with open(functional_path, 'r') as f: content = f.read()
-        if "0.95" not in content and "grad" in content:
+        
+        if "grad =" in content:
             mutated = re.sub(
-                r"return\s+lr\s*\*+([^:\n]+)",
-                r"return lr * \1 * 0.95",
+                r"grad = 1\.0 - jnp\.square\(.*?\)",
+                f"grad = 1.0 - jnp.square({chosen_act})",
                 content
             )
-            verify_gate_isolation(functional_path, mutated)
+            if verify_gate_isolation(functional_path, mutated):
+                log_msg += f"Injected activation variant: {chosen_act}"
+                return log_msg
+
+    elif chosen_type == "evolve_gradient_formula":
+        # Procedurally alter structural scale factors inside the compilation loop
+        scale_variants = ["+ 0.01 * jnp.sin(w)", "* 1.02", "* 0.98", "- 0.005 * w"]
+        chosen_variant = np.random.choice(scale_variants)
+        
+        with open(functional_path, 'r') as f: content = f.read()
+        
+        if "grad =" in content and chosen_variant not in content:
+            mutated = re.sub(
+                r"(grad = 1\.0 - jnp\.square\(.*?\))",
+                rf"\1 {chosen_variant}",
+                content
+            )
+            if verify_gate_isolation(functional_path, mutated):
+                log_msg += f"Evolved gradient update formula via expression: {chosen_variant}"
+                return log_msg
+
+    return "Variant mutation dropped by guardian gates or no change applied."
 
 def self_refactor_engine(log_path):
     print(f"\n[Refactor] Parsing structural trajectory logs: {log_path}")
@@ -133,42 +186,66 @@ def self_refactor_engine(log_path):
                 break
         
         if not last_round:
-            print("[Refactor] WARNING: Historical convergence benchmarks not located.")
-            return
+            print("[Refactor] WARNING: Convergence benchmarks not located.")
+            return None
 
         v_match = re.search(r"Velocity: ([0-9.]+)", last_round)
         if v_match:
-            new_v = v_match.group(1)
+            new_v = float(v_match.group(1))
             engine_path = 'src/automator/substrate_engine.py'
             
             with open(engine_path, 'r') as f:
                 content = f.read()
             
-            content = re.sub(r"self.velocity_ema = [0-9.]+", f"self.velocity_ema = {new_v}", content)
+            content = re.sub(r"self.velocity_ema = [0-9.]+", f"self.velocity_ema = {new_v:.4f}", content)
             
             with open(engine_path, 'w') as f:
                 f.write(content)
-            print(f"[Refactor] SUCCESS: Hardcoded engine parameters: V={new_v}")
+            print(f"[Refactor] SUCCESS: Tracked parameter baseline: V={new_v:.4f}")
+            return new_v
     except Exception as e:
-        print(f"[Refactor] ERROR: Mechanical parameters update failed: {e}")
+        print(f"[Refactor] ERROR: Parameter tracking update failed: {e}")
+    return None
 
-def run_generation(gen_id):
+def run_generation():
+    state = load_evolution_state()
+    state["global_generation"] += 1
+    gen_id = state["global_generation"]
+    
     venv_python = 'python'
     log_path = 'context/automator_execution.log'
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
     
-    print(f"\n{'='*80}\n[MASTER GENERATION {gen_id}/5] LAUNCHING DEEP 1500-ROUND OPTIMIZATION FLIGHT\n{'='*80}")
+    print(f"\n{'='*80}\n[GLOBAL GENERATION {gen_id}] RUNNING CONTINUOUS EVOLUTION FLIGHT\n{'='*80}")
     
-    cmd = [venv_python, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
+    lr_modifier = state["active_parameters"].get("learning_rate_modifier", 1.0)
+    base_lr = 0.15 * lr_modifier
+    
+    cmd = [venv_python, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', f"{base_lr:.4f}"]
     ret = stream_flight(cmd, log_path)
     if ret != 0:
         raise Exception(f"Optimization flight crashed with code {ret}")
 
-    self_refactor_engine(log_path)
-    execute_intra_run_ast_mutation(gen_id)
+    current_v = self_refactor_engine(log_path)
+    
+    mutation_result = generate_procedural_mutation(state)
+    print(f"[Evolution Result] {mutation_result}")
+    
+    if current_v and current_v > state["best_velocity"]:
+        state["best_velocity"] = current_v
+        print(f"[New Epoch Record] Best convergence velocity shifted to: {current_v:.4f}")
+        
+    state["mutation_history"].append({
+        "generation": gen_id,
+        "timestamp": time.time(),
+        "velocity": current_v,
+        "action": mutation_result
+    })
+    
+    save_evolution_state(state)
 
-    print("[Validation] Running ExpansionManager reference diagnostics...")
+    print("[Validation] Running reference verification check...")
     subprocess.run([venv_python, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     
     if os.path.exists('tests/test_stress.py'):
@@ -177,14 +254,10 @@ def run_generation(gen_id):
     subprocess.run(['python', 'bundle_repo.py'], check=True, env=env)
 
 if __name__ == '__main__':
-    start_time = time.time()
+    # Run a block of 3 generations per trigger execution pass to grow infinitely
     try:
-        for g in range(1, 6):
-            run_generation(g)
-        print(f"\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s")
-    except KeyboardInterrupt:
-        print("\n[HALT] Manual override detected.")
-        sys.exit(1)
+        for _ in range(3):
+            run_generation()
     except Exception as e:
-        print(f"\n[HALT] Critical failure: {e}")
+        print(f"\n[HALT] Critical loop failure: {e}")
         sys.exit(1)

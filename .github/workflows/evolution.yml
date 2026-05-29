@@ -42,13 +42,13 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # Tracks the entire src tree recursively so architectural modifications are fully saved
-          git add src/ tasks.json repo_context_bundle.txt
+          # Include the persistent evolution_state json file into git tracking tracking loops
+          git add src/ context/evolution_state.json tasks.json repo_context_bundle.txt
           
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "auto(evolution): upgrade convergence thresholds and structural layout [skip ci]"
+            git commit -m "auto(evolution): propagate unbounded structural upgrades [skip ci]"
             echo "Healing branch history concurrency variations..."
             git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }}

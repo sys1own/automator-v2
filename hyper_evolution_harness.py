@@ -128,7 +128,6 @@ def verify_system_state(v, reward):
 
 def execute_extension_pass(v, reward, lr):
     \"\"\"Executes a 3-stage momentum tracking correction cascade.\"\"\"
-    # STAGE 1: Boundary State Verification Check
     if not verify_system_state(v, reward):
         return v
         
@@ -137,17 +136,16 @@ def execute_extension_pass(v, reward, lr):
         velocity_delta = jnp.abs(v - reward)
         decay_modifier = jnp.exp(-velocity_delta * HISTORICAL_MOMENTUM_BIAS)
         
-        # Calculate intermediate accelerated momentum trajectories
+        # FIXED: Modified to suggest bounded additive delta adjustments around baseline
         proportional_gain = reward * lr * 0.125
-        base_projection = v * decay_modifier
+        fine_adjustment = (v * (decay_modifier - 1.0)) + proportional_gain
         
         # STAGE 3: Structural Fusion & Safe Clamping Bound Enforcement
-        raw_output = base_projection + proportional_gain
-        optimized_output = float(np.clip(raw_output, -SATURATION_LIMIT, SATURATION_LIMIT))
+        raw_output = v + fine_adjustment
+        optimized_output = float(np.clip(raw_output, 0.1, SATURATION_LIMIT))
         
         return optimized_output
-    except Exception as runtime_fault:
-        # Emergency Safe Fallback Route
+    except Exception:
         return v
 """
     elif archetype_id == "laplacian_governor":
@@ -161,7 +159,7 @@ import numpy as np
 
 # Module-Level Hyper-Parameters
 TOPOLOGICAL_CONTRACTION_BOUND = {local_threshold:.6f}
-ATTENUATOR_RATIO = 0.9535
+ATTENUATOR_RATIO = 0.0525
 
 MODULE_METADATA = {{
     "generation_id": {gen_id},
@@ -178,8 +176,6 @@ def process_topological_attenuation(factor):
     processed_factor = factor
     if factor > TOPOLOGICAL_CONTRACTION_BOUND:
         processed_factor *= ATTENUATOR_RATIO
-    elif factor < -TOPOLOGICAL_CONTRACTION_BOUND:
-        processed_factor *= (ATTENUATOR_RATIO * 1.05)
     return processed_factor
 
 def execute_extension_pass(v, reward, lr):
@@ -187,13 +183,11 @@ def execute_extension_pass(v, reward, lr):
     try:
         # STAGE 1: Tracing Factor Synthesis
         stabilization_factor = jnp.sin(reward) * jnp.cos(lr)
-        
-        # STAGE 2: Nonlinear Adaptive Boundary Attenuation
         refined_factor = process_topological_attenuation(stabilization_factor)
         
-        # STAGE 3: Substrate Relaxation Mapping
-        relaxation_vector = v * jnp.abs(refined_factor)
-        clamped_output = float(np.clip(relaxation_vector, -12.0, 12.0))
+        # FIXED: Returns adaptive micro-steps to prevent sudden systemic chokeholds
+        step_delta = refined_factor * lr * 0.25
+        clamped_output = float(np.clip(v + step_delta, 0.1, 12.0))
         
         return clamped_output
     except Exception:
@@ -226,8 +220,8 @@ def evaluate_memory_drift(v):
     \"\"\"Calculates localized zero-copy buffer saturation limits.\"\"\"
     current_drift = jnp.tanh(v) * CACHE_PADDING_THRESHOLD
     if jnp.abs(current_drift) > 1.0:
-        return jnp.sign(current_drift) * 1.0
-    return current_drift
+        return jnp.sign(current_drift) * 0.05
+    return current_drift * 0.05
 
 def execute_extension_pass(v, reward, lr):
     \"\"\"Applies alignment boundary adjustments to prevent false sharing.\"\"\"
@@ -240,7 +234,7 @@ def execute_extension_pass(v, reward, lr):
         raw_output = v + scaled_step
         
         # STAGE 3: Operational Guardrail Check
-        final_telemetry_value = float(np.clip(raw_output, -50.0, 50.0))
+        final_telemetry_value = float(np.clip(raw_output, 0.1, 50.0))
         return final_telemetry_value
     except Exception:
         return v
@@ -276,7 +270,6 @@ def run_generation():
 
     current_v = self_refactor_engine('context/automator_execution.log')
     
-    # FIXED: Natural Selection Sieve. If the last flight tanked, prune the asset that caused it.
     if current_v and state["best_velocity"] > 0 and current_v < (state["best_velocity"] * 0.40):
         print(f"\n[Natural Selection Guard] Performance degraded to {current_v}. Pruning underperforming predecessor...")
         if state["mutation_history"]:

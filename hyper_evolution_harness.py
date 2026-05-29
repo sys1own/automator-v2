@@ -142,7 +142,7 @@ if __name__ == '__main__':
             run_generation(g)
         print(f"\\n[CONTINUOUS TRAINING COMPLETE] Framework evolved 5 generations in {time.time()-start_time:.2f}s")
     except KeyboardInterrupt:
-        print(\"\\n[HALT] Manual override detected.\")
+        print("\n[HALT] Manual override detected.")
         sys.exit(1)
     except Exception as e:
         print(f"\\n[HALT] Critical failure: {e}")

@@ -537,7 +537,6 @@ def stream_flight(cmd, log_path):
         return process.wait()
 
 def verify_extension_gate(file_path, content):
-    """Verifies syntactic and runtime safety of a newly spawned module."""
     try:
         ast.parse(content)
         compile(content, file_path, "exec")
@@ -564,53 +563,57 @@ def verify_extension_gate(file_path, content):
         if os.path.exists(file_path): os.remove(file_path)
         return False
 
-def generate_recursive_expression(depth=0):
-    """Recursively constructs an un-bounded mathematical equation string."""
-    base_terms = ["v", "reward", "lr", "0.95", "1.05"]
-    unary_ops = ["jnp.tanh", "jnp.sin", "jnp.cos", "jnp.abs", "jnp.exp"]
-    binary_ops = ["+", "-", "*", "/"]
-    
-    if depth > 2:
-        return np.random.choice(base_terms)
-        
-    if np.random.random() > 0.5:
-        op = np.random.choice(unary_ops)
-        inner = generate_recursive_expression(depth + 1)
-        return f"{op}({inner})"
-    else:
-        op = np.random.choice(binary_ops)
-        left = generate_recursive_expression(depth + 1)
-        right = generate_recursive_expression(depth + 1)
-        return f"({left} {op} {right})"
-
-def spawn_new_extension_module(gen_id):
-    """Generates and writes an entirely new python module file into the codebase."""
+def spawn_purpose_driven_module(gen_id):
     ext_dir = os.path.join("src", "extensions")
     os.makedirs(ext_dir, exist_ok=True)
     
-    file_name = f"ext_gen_{gen_id}_{int(time.time())}.py"
+    archetypes = [
+        ("momentum_dampener", "Velocity Momentum Tracking Layer"),
+        ("laplacian_governor", "Spectral Router Topology Controller"),
+        ("telemetry_compactor", "Shared Memory Boundary Filter")
+    ]
+    
+    archetype_id, purpose_desc = archetypes[(gen_id - 1) % len(archetypes)]
+    file_name = f"ext_{archetype_id}_gen_{gen_id}_{int(time.time())}.py"
     file_path = os.path.join(ext_dir, file_name)
     
-    # Generate an un-bounded algorithmic equation sequence
-    math_expr = generate_recursive_expression(depth=0)
-    
-    module_code = f"""import jax.numpy as jnp
+    local_bias = float(np.random.uniform(0.01, 0.05))
+    local_threshold = float(np.random.uniform(0.80, 0.95))
+
+    if archetype_id == "momentum_dampener":
+        module_code = f"""import jax.numpy as jnp
 import numpy as np
 
 def execute_extension_pass(v, reward, lr):
     try:
-        # Dynamically evolved mathematical control expression
-        raw_output = {math_expr}
-        # Safeguard to prevent Infinite/NaN values from breaking the JAX trace
-        if jnp.isnan(raw_output) or jnp.isinf(raw_output):
-            return v
-        return float(np.clip(raw_output, -50.0, 50.0))
-    except Exception:
-        return v
+        decay = jnp.exp(-jnp.abs(v - reward) * {local_bias:.6f})
+        return float(np.clip(v * decay + (reward * lr * 0.1), -25.0, 25.0))
+    except Exception: return v
 """
-    print(f"\n[Evolving Organism] Attempting to spawn module '{file_name}' with logic:\n-> {math_expr}")
+    elif archetype_id == "laplacian_governor":
+        module_code = f"""import jax.numpy as jnp
+import numpy as np
+
+def execute_extension_pass(v, reward, lr):
+    try:
+        stabilizer = jnp.sin(reward) * {local_threshold:.6f}
+        return float(np.clip(v * jnp.abs(stabilizer), -12.0, 12.0))
+    except Exception: return v
+"""
+    else:
+        module_code = f"""import jax.numpy as jnp
+import numpy as np
+
+def execute_extension_pass(v, reward, lr):
+    try:
+        drift = jnp.tanh(v) * {np.random.uniform(10.0, 15.0):.4f}
+        return float(np.clip(v + (drift * lr), -50.0, 50.0))
+    except Exception: return v
+"""
+
+    print(f"\n[Evolving Organism] Spawning targeted extension '{file_name}'...")
     if verify_extension_gate(file_path, module_code):
-        return f"Successfully spawned functional module extension: {file_name}"
+        return f"Successfully spawned purposed module extension: {file_name}"
     return "Spawned extension rejected by verification gates."
 
 def self_refactor_engine(log_path):
@@ -620,8 +623,7 @@ def self_refactor_engine(log_path):
             if "Round" in line and "Velocity:" in line:
                 v_match = re.search(r"Velocity: ([0-9.]+)", line)
                 if v_match: return float(v_match.group(1))
-    except Exception:
-        pass
+    except Exception: pass
     return None
 
 def run_generation():
@@ -630,16 +632,15 @@ def run_generation():
     gen_id = state["global_generation"]
     
     print(f"\n{'='*80}\n[ORGANISM GENERATION {gen_id}] EXECUTING ACTIVE FLIGHT CHANNEL\n{'='*80}")
-    
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
     
-    cmd = [sys.executable, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1500', '--learning-rate', '0.15']
+    cmd = [sys.executable, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '3000', '--learning-rate', '0.15']
     ret = stream_flight(cmd, 'context/automator_execution.log')
     if ret != 0: raise Exception(f"Flight crashed with status code {ret}")
 
     current_v = self_refactor_engine('context/automator_execution.log')
-    action_taken = spawn_new_extension_module(gen_id)
+    action_taken = spawn_purpose_driven_module(gen_id)
     print(f"[Result] {action_taken}")
     
     if current_v and current_v > state["best_velocity"]:

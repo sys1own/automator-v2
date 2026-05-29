@@ -42,7 +42,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          # UNBOUNDED TRACKING: Track the entire src/ tree so new modules or edits are captured
+          # Tracks the entire src tree recursively so architectural modifications are fully saved
           git add src/ tasks.json repo_context_bundle.txt
           
           if git diff --staged --quiet; then

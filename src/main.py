@@ -1,6 +1,6 @@
 import os
 import sys
-# Bulletproof path injection: Forces Python to recognize the 'src' directory on any machine
+# Programmatic root directory self-discovery mapping
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
@@ -32,6 +32,7 @@ def run_controller(config_path, rounds, lr):
 
     for r in range(1, rounds + 1):
         vdf_seed = f'epoch_{r}_{engine.velocity_ema}'.encode()
+        # Aligned to a uniform T=64 pace value across evaluation and verification calls
         y, proof = vdf_engine.evaluate_and_prove(vdf_seed, 64)
         pacing_queue.submit_verification(r, vdf_seed, 64, y, proof, vdf_callback)
 

@@ -164,12 +164,15 @@ MODULE_METADATA = {{
 
 def execute_extension_pass(v, reward, lr):
     try:
+        # STAGE 1: State Vector Setup and Shifted Operator Construction
         v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        reward_jax = jnp.array(r_val, dtype=jnp.float32)
         edge_weight = float(np.maximum(0.01, np.abs(v_val - r_val) * lr_val))
         v_jax = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
         
         shift = jnp.clip(jnp.array(lr_val * r_val * {local_threshold_bias:.4f}, dtype=jnp.float32), 0.0, 1.0)
         
+        # STAGE 2: Shifted Power Iteration for Ritz Value Tracking
         def compute_shifted_laplacian_step(vec):
             left_shift = jnp.roll(vec, shift=-1)
             right_shift = jnp.roll(vec, shift=1)
@@ -186,8 +189,9 @@ def execute_extension_pass(v, reward, lr):
         den = jnp.dot(current_vector, current_vector)
         ritz_value = jnp.where(den > 0.0, num / den, 0.5)
         
-        algebraic_pacing = jnp.clip(jnp.abs(ritz_value), 0.05, 2.0)
-        step_delta = algebraic_pacing * lr_val * (r_val - v_val) * 0.25
+        # STAGE 3: Relative Step Scaling (reward as directional variance amplifier)
+        refined_factor = jnp.clip(jnp.abs(ritz_value), 0.05, 2.0)
+        step_delta = refined_factor * lr_val * v_val * reward_jax * 0.1
         
         ceiling = float(np.maximum(12.0, np.abs(v_val) * 2.0))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
@@ -215,18 +219,22 @@ MODULE_METADATA = {{
 
 def execute_extension_pass(v, reward, lr):
     try:
+        # STAGE 1: Simplex Projection via Sigmoid Belief State
         v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        reward_jax = jnp.array(r_val, dtype=jnp.float32)
         v_jax = jnp.array(v_val, dtype=jnp.float32)
         p1 = 1.0 / (1.0 + jnp.exp(-jnp.clip(v_jax, -10.0, 10.0)))
         p2 = 1.0 - p1
         belief_state = jnp.array([p1, p2])
         
+        # STAGE 2: Shannon Entropy and Dobrushin Coefficient Calculations
         eps = 1e-12
         shannon_entropy = -jnp.sum(belief_state * jnp.log(belief_state + eps))
         dobrushin_bound = 1.0 - (jnp.min(belief_state) / (jnp.max(belief_state) + eps))
         
+        # STAGE 3: Relative Step Scaling (reward as directional variance amplifier)
         dampening_factor = jnp.clip(shannon_entropy * dobrushin_bound * {local_safety_ratio:.4f}, 0.01, 1.0)
-        step_delta = dampening_factor * lr_val * (r_val - v_val)
+        step_delta = dampening_factor * lr_val * v_val * reward_jax * 0.1
         
         ceiling = float(np.maximum(50.0, jnp.abs(v_val) * 1.5))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))

@@ -3,112 +3,22 @@
     "best_velocity": 5.1409,
     "mutation_history": [
         {
-            "generation": 1,
-            "timestamp": 1780064031.6954384,
-            "velocity": 5.1409,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_1_1780064030.py"
-        },
-        {
-            "generation": 2,
-            "timestamp": 1780064298.395867,
-            "velocity": 1.7833,
-            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_2_1780064297.py"
-        },
-        {
-            "generation": 3,
-            "timestamp": 1780064565.544596,
-            "velocity": 0.0826,
-            "action": "Successfully spawned purposed module extension: ext_telemetry_compactor_gen_3_1780064564.py"
-        },
-        {
-            "generation": 4,
-            "timestamp": 1780064997.0470848,
-            "velocity": 0.3989,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_4_1780064996.py"
-        },
-        {
-            "generation": 5,
-            "timestamp": 1780065256.476667,
-            "velocity": 0.6508,
-            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_5_1780065255.py"
-        },
-        {
-            "generation": 6,
-            "timestamp": 1780065516.103317,
-            "velocity": 0.198,
-            "action": "PRUNED due to performance degradation (Velocity: 0.5715)"
-        },
-        {
-            "generation": 7,
-            "timestamp": 1780066195.4890435,
-            "velocity": 0.5715,
-            "action": "PRUNED due to performance degradation (Velocity: 0.8629)"
-        },
-        {
-            "generation": 8,
-            "timestamp": 1780066479.9256675,
-            "velocity": 0.8629,
-            "action": "PRUNED due to performance degradation (Velocity: 0.7312)"
-        },
-        {
-            "generation": 9,
-            "timestamp": 1780066764.6105988,
-            "velocity": 0.7312,
-            "action": "PRUNED due to performance degradation (Velocity: 0.5961)"
-        },
-        {
-            "generation": 10,
-            "timestamp": 1780067223.3301606,
-            "velocity": 0.5961,
-            "action": "PRUNED due to performance degradation (Velocity: 0.5876)"
-        },
-        {
-            "generation": 11,
-            "timestamp": 1780067482.5327415,
-            "velocity": 0.5876,
-            "action": "PRUNED due to performance degradation (Velocity: 0.5872)"
-        },
-        {
-            "generation": 12,
-            "timestamp": 1780067741.859196,
-            "velocity": 0.5872,
-            "action": "PRUNED due to performance degradation (Velocity: 0.8605)"
-        },
-        {
-            "generation": 13,
-            "timestamp": 1780069125.7690058,
-            "velocity": 0.8605,
-            "action": "PRUNED due to performance degradation (Velocity: 0.6933)"
-        },
-        {
-            "generation": 14,
-            "timestamp": 1780069385.6627874,
-            "velocity": 0.6933,
-            "action": "PRUNED due to performance degradation (Velocity: 0.7228)"
-        },
-        {
-            "generation": 15,
-            "timestamp": 1780069646.8233283,
-            "velocity": 0.7228,
-            "action": "PRUNED due to performance degradation (Velocity: 0.8558)"
-        },
-        {
             "generation": 16,
-            "timestamp": 1780070782.2009692,
-            "velocity": 0.8558,
-            "action": "PRUNED due to performance degradation (Velocity: 0.6291)"
+            "timestamp": 1780070000.0,
+            "velocity": 5.1409,
+            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_16.py"
         },
         {
             "generation": 17,
-            "timestamp": 1780071075.4664662,
-            "velocity": 0.6291,
-            "action": "PRUNED due to performance degradation (Velocity: 0.4482)"
+            "timestamp": 1780070100.0,
+            "velocity": 5.1409,
+            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_17.py"
         },
         {
             "generation": 18,
-            "timestamp": 1780071369.3428338,
-            "velocity": 0.4482,
-            "action": "Successfully spawned purposed module extension: ext_telemetry_compactor_gen_18_1780071368.py"
+            "timestamp": 1780070200.0,
+            "velocity": 5.1409,
+            "action": "Successfully spawned purposed module extension: ext_telemetry_compactor_gen_18.py"
         }
     ],
     "active_parameters": {

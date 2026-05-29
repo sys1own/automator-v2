@@ -851,18 +851,18 @@ if __name__ == '__main__':
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
 --- Framework Active | Loaded 7 Evolved Extensions ---
-Round 1/3000 | Velocity: 4.7934
-Round 500/3000 | Velocity: 1.2562
-Round 1000/3000 | Velocity: 1.2580
-Round 1500/3000 | Velocity: 1.0932
-Round 2000/3000 | Velocity: 1.2747
-Round 2500/3000 | Velocity: 1.3572
-Round 3000/3000 | Velocity: 1.1785
+Round 1/3000 | Velocity: 4.8549
+Round 500/3000 | Velocity: 1.3677
+Round 1000/3000 | Velocity: 1.4670
+Round 1500/3000 | Velocity: 1.4769
+Round 2000/3000 | Velocity: 1.4290
+Round 2500/3000 | Velocity: 1.3869
+Round 3000/3000 | Velocity: 1.3739
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 40,
+    "global_generation": 41,
     "best_velocity": 5.1409,
     "mutation_history": [
         {
@@ -983,7 +983,13 @@ Round 3000/3000 | Velocity: 1.1785
             "generation": 40,
             "timestamp": 1780089295.0792668,
             "velocity": 1.1785,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_40_1780089293.py"
+            "action": "PRUNED due to performance degradation (Velocity: 1.3739)"
+        },
+        {
+            "generation": 41,
+            "timestamp": 1780089571.8744512,
+            "velocity": 1.3739,
+            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_41_1780089570.py"
         }
     ],
     "active_parameters": {
@@ -2032,6 +2038,59 @@ def execute_extension_pass(v, reward, lr):
         return v
 
 
+--- FILE: src/extensions/ext_laplacian_governor_gen_41_1780089570.py ---
+# ==============================================================================
+# AUTONOMOUS EXTENSION LAYER: GENERATION 41
+# Archetype: Spectral Router Topology Controller
+# Target Subsystem: Curvature-guided Ritz value pacing over shifted graph operators
+# ==============================================================================
+import jax.numpy as jnp
+import numpy as np
+
+MODULE_METADATA = {
+    "generation_id": 41,
+    "purpose": "Spectral Router Topology Controller",
+    "compiled_timestamp": 1780089570.4257529,
+    "hyper_parameters": {
+        "regime": "Spectral Graph Theory Deflation",
+        "operator_dimension": 4,
+        "stabilization_filter": "stagnation_breaker",
+        "threshold_bias": 0.889676
+    }
+}
+
+def execute_extension_pass(v, reward, lr):
+    try:
+        v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        edge_weight = float(np.maximum(0.01, np.abs(v_val - r_val) * lr_val))
+        v_jax = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
+        
+        shift = jnp.clip(jnp.array(lr_val * r_val * 0.8897, dtype=jnp.float32), 0.0, 1.0)
+        
+        def compute_shifted_laplacian_step(vec):
+            left_shift = jnp.roll(vec, shift=-1)
+            right_shift = jnp.roll(vec, shift=1)
+            adjacency_product = 0.5 * (left_shift + right_shift) * edge_weight
+            return (vec - adjacency_product) - shift * vec
+            
+        current_vector = v_jax / (jnp.linalg.norm(v_jax) + 1e-8)
+        for _ in range(3):
+            iterated = compute_shifted_laplacian_step(current_vector)
+            vector_norm = jnp.linalg.norm(iterated)
+            current_vector = jnp.where(vector_norm > 0.0, iterated / vector_norm, current_vector)
+            
+        num = jnp.dot(current_vector, compute_shifted_laplacian_step(current_vector))
+        den = jnp.dot(current_vector, current_vector)
+        ritz_value = jnp.where(den > 0.0, num / den, 0.5)
+        
+        algebraic_pacing = jnp.clip(jnp.abs(ritz_value), 0.05, 2.0)
+        step_delta = algebraic_pacing * lr_val * (r_val - v_val) * 0.25
+        
+        ceiling = float(np.maximum(12.0, np.abs(v_val) * 2.0))
+        return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
+    except Exception: return v
+
+
 --- FILE: src/extensions/ext_telemetry_compactor_gen_18_1780071368.py ---
 # ==============================================================================
 # AUTONOMOUS EXTENSION LAYER: GENERATION 18
@@ -2077,54 +2136,6 @@ def execute_extension_pass(v, reward, lr):
         return final_telemetry_value
     except Exception:
         return v
-
-
---- FILE: src/extensions/ext_momentum_dampener_gen_40_1780089293.py ---
-# ==============================================================================
-# AUTONOMOUS EXTENSION LAYER: GENERATION 40
-# Archetype: Velocity Momentum Tracking Layer
-# Target Subsystem: Adaptive Meta-Gradient Step Scaling
-# ==============================================================================
-import jax.numpy as jnp
-import numpy as np
-
-MODULE_METADATA = {
-    "generation_id": 40,
-    "purpose": "Velocity Momentum Tracking Layer",
-    "compiled_timestamp": 1780089293.5955274,
-    "hyper_parameters": {
-        "regime": "Implicit-Function Meta-Gradient Pacing",
-        "differentiation_mode": "mixed_flow",
-        "dynamic_bounds": True
-    }
-}
-
-def verify_system_state(v, reward):
-    if np.isnan(v) or np.isinf(v): return False
-    if np.isnan(reward) or np.isinf(reward): return False
-    return True
-
-def execute_extension_pass(v, reward, lr):
-    if not verify_system_state(v, reward): return v
-    try:
-        v_jax = jnp.array(float(v), dtype=jnp.float32)
-        rew_jax = jnp.array(float(reward), dtype=jnp.float32)
-        lr_jax = jnp.array(float(lr), dtype=jnp.float32)
-        
-        tracking_error = jnp.abs(v_jax - rew_jax)
-        dynamic_regularizer = jnp.maximum(1e-5, tracking_error * lr_jax)
-        
-        grad_inner = v_jax - rew_jax
-        hessian_inner = 1.0 + dynamic_regularizer * jnp.square(grad_inner)
-        mixed_partial = -lr_jax * grad_inner
-        
-        best_response_jacobian = mixed_partial / (hessian_inner + 1e-8)
-        step_delta = -best_response_jacobian * lr_jax * (1.0 + jnp.tanh(tracking_error))
-        raw_output = v_jax + step_delta
-        
-        ceiling = float(jnp.maximum(25.0, jnp.abs(rew_jax) * 100.0))
-        return float(np.clip(raw_output, 0.1, ceiling))
-    except Exception: return v
 
 
 --- FILE: src/extensions/ext_laplacian_governor_gen_17.py ---

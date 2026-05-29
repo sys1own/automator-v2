@@ -90,157 +90,150 @@ def spawn_purpose_driven_module(gen_id):
     file_name = f"ext_{archetype_id}_gen_{gen_id}_{int(time.time())}.py"
     file_path = os.path.join(ext_dir, file_name)
     
-    local_bias = float(np.random.uniform(0.01, 0.05))
-    local_threshold = float(np.random.uniform(0.80, 0.95))
-    local_capacity = int(np.random.randint(64, 256))
-
+    # Stochastic variation injected across generation steps to avoid identical expert footprints
+    local_threshold_bias = float(np.random.uniform(0.75, 0.99))
+    local_safety_ratio = float(np.random.uniform(0.90, 0.98))
+    
     if archetype_id == "momentum_dampener":
         module_code = f"""# ==============================================================================
 # AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
 # Archetype: {purpose_desc}
-# Target Subsystem: Velocity Momentum Control Matrices
+# Target Subsystem: Adaptive Meta-Gradient Step Scaling
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
 
-# Module-Level Hyper-Parameters
-HISTORICAL_MOMENTUM_BIAS = {local_bias:.6f}
-SATURATION_LIMIT = 25.0
-
-# Persistent Analytics Structural Blueprint
 MODULE_METADATA = {{
     "generation_id": {gen_id},
     "purpose": "{purpose_desc}",
     "compiled_timestamp": {time.time()},
     "hyper_parameters": {{
-        "momentum_bias": HISTORICAL_MOMENTUM_BIAS,
-        "clipping_ceiling": SATURATION_LIMIT
+        "regime": "Implicit-Function Meta-Gradient Pacing",
+        "differentiation_mode": "mixed_flow",
+        "dynamic_bounds": True
     }}
 }}
 
 def verify_system_state(v, reward):
-    \"\"\"Performs structural checks on internal float states before gradient pass.\"\"\"
-    if np.isnan(v) or np.isinf(v):
-        return False
-    if reward < 0.0 or reward > 1.0:
-        return False
+    if np.isnan(v) or np.isinf(v): return False
+    if np.isnan(reward) or np.isinf(reward): return False
     return True
 
 def execute_extension_pass(v, reward, lr):
-    \"\"\"Executes a 3-stage momentum tracking correction cascade.\"\"\"
-    if not verify_system_state(v, reward):
-        return v
-        
+    if not verify_system_state(v, reward): return v
     try:
-        # STAGE 2: Core Exponential Momentum Transformation
-        velocity_delta = jnp.abs(v - reward)
-        decay_modifier = jnp.exp(-velocity_delta * HISTORICAL_MOMENTUM_BIAS)
+        v_jax = jnp.array(float(v), dtype=jnp.float32)
+        rew_jax = jnp.array(float(reward), dtype=jnp.float32)
+        lr_jax = jnp.array(float(lr), dtype=jnp.float32)
         
-        # FIXED: Modified to suggest bounded additive delta adjustments around baseline
-        proportional_gain = reward * lr * 0.125
-        fine_adjustment = (v * (decay_modifier - 1.0)) + proportional_gain
+        tracking_error = jnp.abs(v_jax - rew_jax)
+        dynamic_regularizer = jnp.maximum(1e-5, tracking_error * lr_jax)
         
-        # STAGE 3: Structural Fusion & Safe Clamping Bound Enforcement
-        raw_output = v + fine_adjustment
-        optimized_output = float(np.clip(raw_output, 0.1, SATURATION_LIMIT))
+        grad_inner = v_jax - rew_jax
+        hessian_inner = 1.0 + dynamic_regularizer * jnp.square(grad_inner)
+        mixed_partial = -lr_jax * grad_inner
         
-        return optimized_output
-    except Exception:
-        return v
+        best_response_jacobian = mixed_partial / (hessian_inner + 1e-8)
+        step_delta = -best_response_jacobian * lr_jax * (1.0 + jnp.tanh(tracking_error))
+        raw_output = v_jax + step_delta
+        
+        ceiling = float(jnp.maximum(25.0, jnp.abs(rew_jax) * 100.0))
+        return float(np.clip(raw_output, 0.1, ceiling))
+    except Exception: return v
 """
     elif archetype_id == "laplacian_governor":
         module_code = f"""# ==============================================================================
 # AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
 # Archetype: {purpose_desc}
-# Target Subsystem: Graph Spectral Router Boundary Constraints
+# Target Subsystem: Curvature-guided Ritz value pacing over shifted graph operators
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
-
-# Module-Level Hyper-Parameters
-TOPOLOGICAL_CONTRACTION_BOUND = {local_threshold:.6f}
-ATTENUATOR_RATIO = 0.0525
 
 MODULE_METADATA = {{
     "generation_id": {gen_id},
     "purpose": "{purpose_desc}",
     "compiled_timestamp": {time.time()},
     "hyper_parameters": {{
-        "contraction_bound": TOPOLOGICAL_CONTRACTION_BOUND,
-        "attenuator": ATTENUATOR_RATIO
+        "regime": "Spectral Graph Theory Deflation",
+        "operator_dimension": 4,
+        "stabilization_filter": "stagnation_breaker",
+        "threshold_bias": {local_threshold_bias:.6f}
     }}
 }}
 
-def process_topological_attenuation(factor):
-    \"\"\"Applies dampening arrays to stabilizing factors that overshoot boundaries.\"\"\"
-    processed_factor = factor
-    if factor > TOPOLOGICAL_CONTRACTION_BOUND:
-        processed_factor *= ATTENUATOR_RATIO
-    return processed_factor
-
 def execute_extension_pass(v, reward, lr):
-    \"\"\"Coordinates dynamic step vectors relative to Dobrushin contraction limits.\"\"\"
     try:
-        # STAGE 1: Tracing Factor Synthesis
-        stabilization_factor = jnp.sin(reward) * jnp.cos(lr)
-        refined_factor = process_topological_attenuation(stabilization_factor)
+        v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        edge_weight = float(np.maximum(0.01, np.abs(v_val - r_val) * lr_val))
+        v_jax = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
         
-        # FIXED: Returns adaptive micro-steps to prevent sudden systemic chokeholds
-        step_delta = refined_factor * lr * 0.25
-        clamped_output = float(np.clip(v + step_delta, 0.1, 12.0))
+        shift = jnp.clip(jnp.array(lr_val * r_val * {local_threshold_bias:.4f}, dtype=jnp.float32), 0.0, 1.0)
         
-        return clamped_output
-    except Exception:
-        return v
+        def compute_shifted_laplacian_step(vec):
+            left_shift = jnp.roll(vec, shift=-1)
+            right_shift = jnp.roll(vec, shift=1)
+            adjacency_product = 0.5 * (left_shift + right_shift) * edge_weight
+            return (vec - adjacency_product) - shift * vec
+            
+        current_vector = v_jax / (jnp.linalg.norm(v_jax) + 1e-8)
+        for _ in range(3):
+            iterated = compute_shifted_laplacian_step(current_vector)
+            vector_norm = jnp.linalg.norm(iterated)
+            current_vector = jnp.where(vector_norm > 0.0, iterated / vector_norm, current_vector)
+            
+        num = jnp.dot(current_vector, compute_shifted_laplacian_step(current_vector))
+        den = jnp.dot(current_vector, current_vector)
+        ritz_value = jnp.where(den > 0.0, num / den, 0.5)
+        
+        algebraic_pacing = jnp.clip(jnp.abs(ritz_value), 0.05, 2.0)
+        step_delta = algebraic_pacing * lr_val * (r_val - v_val) * 0.25
+        
+        ceiling = float(np.maximum(12.0, np.abs(v_val) * 2.0))
+        return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
+    except Exception: return v
 """
     else: # telemetry_compactor
         module_code = f"""# ==============================================================================
 # AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
 # Archetype: {purpose_desc}
-# Target Subsystem: Lock-Free Shared Memory Ring Buffers
+# Target Subsystem: Dynamic Shannon-entropy dampening constraints for cache aligned queues
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
-
-# Module-Level Hyper-Parameters
-CACHE_PADDING_THRESHOLD = {np.random.uniform(10.0, 15.0):.4f}
-MAX_BUFFER_CAPACITY = {local_capacity}
 
 MODULE_METADATA = {{
     "generation_id": {gen_id},
     "purpose": "{purpose_desc}",
     "compiled_timestamp": {time.time()},
     "hyper_parameters": {{
-        "padding_threshold": CACHE_PADDING_THRESHOLD,
-        "max_capacity": MAX_BUFFER_CAPACITY
+        "regime": "Simplicial Belief Dynamics",
+        "alignment_offset": 128,
+        "safety_ratio": {local_safety_ratio:.6f}
     }}
 }}
 
-def evaluate_memory_drift(v):
-    \"\"\"Calculates localized zero-copy buffer saturation limits.\"\"\"
-    current_drift = jnp.tanh(v) * CACHE_PADDING_THRESHOLD
-    if jnp.abs(current_drift) > 1.0:
-        return jnp.sign(current_drift) * 0.05
-    return current_drift * 0.05
-
 def execute_extension_pass(v, reward, lr):
-    \"\"\"Applies alignment boundary adjustments to prevent false sharing.\"\"\"
     try:
-        # STAGE 1: Extract Core Drift Invariants
-        memory_drift_coefficient = evaluate_memory_drift(v)
+        v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        v_jax = jnp.array(v_val, dtype=jnp.float32)
+        p1 = 1.0 / (1.0 + jnp.exp(-jnp.clip(v_jax, -10.0, 10.0)))
+        p2 = 1.0 - p1
+        belief_state = jnp.array([p1, p2])
         
-        # STAGE 2: Compile Compound Multi-Statement Telemetry Step
-        scaled_step = memory_drift_coefficient * lr
-        raw_output = v + scaled_step
+        eps = 1e-12
+        shannon_entropy = -jnp.sum(belief_state * jnp.log(belief_state + eps))
+        dobrushin_bound = 1.0 - (jnp.min(belief_state) / (jnp.max(belief_state) + eps))
         
-        # STAGE 3: Operational Guardrail Check
-        final_telemetry_value = float(np.clip(raw_output, 0.1, 50.0))
-        return final_telemetry_value
-    except Exception:
-        return v
+        dampening_factor = jnp.clip(shannon_entropy * dobrushin_bound * {local_safety_ratio:.4f}, 0.01, 1.0)
+        step_delta = dampening_factor * lr_val * (r_val - v_val)
+        
+        ceiling = float(np.maximum(50.0, jnp.abs(v_val) * 1.5))
+        return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
+    except Exception: return v
 """
 
-    print(f"\n[Evolving Organism] Spawning comprehensive targeted extension '{file_name}'...")
+    print(f"\n[Evolving Organism] Spawning comprehensive geometric extension '{file_name}'...")
     if verify_extension_gate(file_path, module_code):
         return f"Successfully spawned purposed module extension: {file_name}"
     return "Spawned extension rejected by verification gates."
@@ -283,7 +276,7 @@ def run_generation():
                     print(f"[Pruned] Evicted regressive code asset: {target_file}")
                 last_mutation["action"] = f"PRUNED due to performance degradation (Velocity: {current_v})"
 
-    action_taken = spawn_purpose_driven_module(gen_id)
+    action_taken = proud = spawn_purpose_driven_module(gen_id)
     print(f"[Result] {action_taken}")
     
     if current_v and current_v > state["best_velocity"]:

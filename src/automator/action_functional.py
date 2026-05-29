@@ -18,11 +18,11 @@ class AcceleratedSubstrateFlow:
     @jax.jit
     def jit_weight_mutation(weights, delta, floor=-0.5):
         'XLA-compiled weight mutation loop.'
-        return jnp.maximum(weights + delta, floor)
+        return jnp.clip(weights + delta + delta, floor, 12.0)
 
     @staticmethod
     @jax.jit
     def jit_ste_gradient(w, lr, reward):
         'XLA-compiled Straight-Through Estimator pass.'
         grad = 1.0 - jnp.square(jnp.tanh(w))
-        return lr * reward * grad
+        return lr *  reward * grad * 0.95

@@ -7,7 +7,7 @@ from src.agents.router import SharedMemoryRing
 class SubstrateEngine:
     def __init__(self, shards: List[str]):
         self.shards = shards
-        self.velocity_ema = 4.8976
+        self.velocity_ema = 5.0787
         self.diversity_index = 0.0000
         self.dobrushin_radius = 0.842
 

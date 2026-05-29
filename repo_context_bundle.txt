@@ -851,18 +851,18 @@ if __name__ == '__main__':
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
 --- Framework Active | Loaded 7 Evolved Extensions ---
-Round 1/3000 | Velocity: 4.7954
-Round 500/3000 | Velocity: 1.3901
-Round 1000/3000 | Velocity: 1.1696
-Round 1500/3000 | Velocity: 1.2957
-Round 2000/3000 | Velocity: 1.3158
-Round 2500/3000 | Velocity: 1.2785
-Round 3000/3000 | Velocity: 1.2691
+Round 1/3000 | Velocity: 4.8066
+Round 500/3000 | Velocity: 1.3841
+Round 1000/3000 | Velocity: 1.4115
+Round 1500/3000 | Velocity: 1.3968
+Round 2000/3000 | Velocity: 1.2919
+Round 2500/3000 | Velocity: 1.3261
+Round 3000/3000 | Velocity: 1.3472
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 31,
+    "global_generation": 32,
     "best_velocity": 5.1409,
     "mutation_history": [
         {
@@ -929,7 +929,13 @@ Round 3000/3000 | Velocity: 1.2691
             "generation": 31,
             "timestamp": 1780079298.7789679,
             "velocity": 1.2691,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_31_1780079297.py"
+            "action": "PRUNED due to performance degradation (Velocity: 1.3472)"
+        },
+        {
+            "generation": 32,
+            "timestamp": 1780079596.5793207,
+            "velocity": 1.3472,
+            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_32_1780079595.py"
         }
     ],
     "active_parameters": {
@@ -1978,51 +1984,56 @@ def execute_extension_pass(v, reward, lr):
         return v
 
 
---- FILE: src/extensions/ext_momentum_dampener_gen_31_1780079297.py ---
+--- FILE: src/extensions/ext_laplacian_governor_gen_32_1780079595.py ---
 # ==============================================================================
-# AUTONOMOUS EXTENSION LAYER: GENERATION 31
-# Archetype: Velocity Momentum Tracking Layer
-# Target Subsystem: Adaptive Meta-Gradient Step Scaling
+# AUTONOMOUS EXTENSION LAYER: GENERATION 32
+# Archetype: Spectral Router Topology Controller
+# Target Subsystem: Curvature-guided Ritz value pacing over shifted graph operators
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
 
 MODULE_METADATA = {
-    "generation_id": 31,
-    "purpose": "Velocity Momentum Tracking Layer",
-    "compiled_timestamp": 1780079297.3020866,
+    "generation_id": 32,
+    "purpose": "Spectral Router Topology Controller",
+    "compiled_timestamp": 1780079595.1830676,
     "hyper_parameters": {
-        "regime": "Implicit-Function Meta-Gradient Pacing",
-        "differentiation_mode": "mixed_flow",
-        "dynamic_bounds": True
+        "regime": "Spectral Graph Theory Deflation",
+        "operator_dimension": 4,
+        "stabilization_filter": "stagnation_breaker",
+        "threshold_bias": 0.861391
     }
 }
 
-def verify_system_state(v, reward):
-    if np.isnan(v) or np.isinf(v): return False
-    if np.isnan(reward) or np.isinf(reward): return False
-    return True
-
 def execute_extension_pass(v, reward, lr):
-    if not verify_system_state(v, reward): return v
     try:
-        v_jax = jnp.array(float(v), dtype=jnp.float32)
-        rew_jax = jnp.array(float(reward), dtype=jnp.float32)
-        lr_jax = jnp.array(float(lr), dtype=jnp.float32)
+        v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        edge_weight = float(np.maximum(0.01, np.abs(v_val - r_val) * lr_val))
+        v_jax = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
         
-        tracking_error = jnp.abs(v_jax - rew_jax)
-        dynamic_regularizer = jnp.maximum(1e-5, tracking_error * lr_jax)
+        shift = jnp.clip(jnp.array(lr_val * r_val * 0.8614, dtype=jnp.float32), 0.0, 1.0)
         
-        grad_inner = v_jax - rew_jax
-        hessian_inner = 1.0 + dynamic_regularizer * jnp.square(grad_inner)
-        mixed_partial = -lr_jax * grad_inner
+        def compute_shifted_laplacian_step(vec):
+            left_shift = jnp.roll(vec, shift=-1)
+            right_shift = jnp.roll(vec, shift=1)
+            adjacency_product = 0.5 * (left_shift + right_shift) * edge_weight
+            return (vec - adjacency_product) - shift * vec
+            
+        current_vector = v_jax / (jnp.linalg.norm(v_jax) + 1e-8)
+        for _ in range(3):
+            iterated = compute_shifted_laplacian_step(current_vector)
+            vector_norm = jnp.linalg.norm(iterated)
+            current_vector = jnp.where(vector_norm > 0.0, iterated / vector_norm, current_vector)
+            
+        num = jnp.dot(current_vector, compute_shifted_laplacian_step(current_vector))
+        den = jnp.dot(current_vector, current_vector)
+        ritz_value = jnp.where(den > 0.0, num / den, 0.5)
         
-        best_response_jacobian = mixed_partial / (hessian_inner + 1e-8)
-        step_delta = -best_response_jacobian * lr_jax * (1.0 + jnp.tanh(tracking_error))
-        raw_output = v_jax + step_delta
+        algebraic_pacing = jnp.clip(jnp.abs(ritz_value), 0.05, 2.0)
+        step_delta = algebraic_pacing * lr_val * (r_val - v_val) * 0.25
         
-        ceiling = float(jnp.maximum(25.0, jnp.abs(rew_jax) * 100.0))
-        return float(np.clip(raw_output, 0.1, ceiling))
+        ceiling = float(np.maximum(12.0, np.abs(v_val) * 2.0))
+        return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
     except Exception: return v
 
 

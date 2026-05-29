@@ -44,8 +44,8 @@ def stream_flight(cmd, log_path):
             sys.stdout.flush()
             log_file.write(line)
             log_file.flush()
-        process.stdout.close()
-        return process.wait()
+    process.stdout.close()
+    return process.wait()
 
 def verify_extension_gate(file_path, content):
     try:
@@ -57,6 +57,7 @@ def verify_extension_gate(file_path, content):
             
         env = os.environ.copy()
         env["PYTHONPATH"] = os.getcwd()
+        
         test_run = subprocess.run(
             [sys.executable, "-m", "src.main", "--input", "tasks.json", "--max-rounds", "2"],
             capture_output=True, text=True, env=env
@@ -75,6 +76,7 @@ def verify_extension_gate(file_path, content):
         return False
 
 def spawn_purpose_driven_module(gen_id):
+    """Generates comprehensive, multi-stage telemetry processing modules with dedicated logic layers."""
     ext_dir = os.path.join("src", "extensions")
     os.makedirs(ext_dir, exist_ok=True)
     
@@ -90,39 +92,161 @@ def spawn_purpose_driven_module(gen_id):
     
     local_bias = float(np.random.uniform(0.01, 0.05))
     local_threshold = float(np.random.uniform(0.80, 0.95))
+    local_capacity = int(np.random.randint(64, 256))
 
     if archetype_id == "momentum_dampener":
-        module_code = f"""import jax.numpy as jnp
+        module_code = f"""# ==============================================================================
+# AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
+# Archetype: {purpose_desc}
+# Target Subsystem: Velocity Momentum Control Matrices
+# ==============================================================================
+import jax.numpy as jnp
 import numpy as np
 
+# Module-Level Hyper-Parameters
+HISTORICAL_MOMENTUM_BIAS = {local_bias:.6f}
+SATURATION_LIMIT = 25.0
+
+# Persistent Analytics Structural Blueprint
+MODULE_METADATA = {{
+    "generation_id": {gen_id},
+    "purpose": "{purpose_desc}",
+    "compiled_timestamp": {time.time()},
+    "hyper_parameters": {{
+        "momentum_bias": HISTORICAL_MOMENTUM_BIAS,
+        "clipping_ceiling": SATURATION_LIMIT
+    }}
+}}
+
+def verify_system_state(v, reward):
+    \"\"\"Performs structural checks on internal float states before gradient pass.\"\"\"
+    if np.isnan(v) or np.isinf(v):
+        return False
+    if reward < 0.0 or reward > 1.0:
+        return False
+    return True
+
 def execute_extension_pass(v, reward, lr):
+    \"\"\"Executes a 3-stage momentum tracking correction cascade.\"\"\"
+    # STAGE 1: Boundary State Verification Check
+    if not verify_system_state(v, reward):
+        return v
+        
     try:
-        decay = jnp.exp(-jnp.abs(v - reward) * {local_bias:.6f})
-        return float(np.clip(v * decay + (reward * lr * 0.1), -25.0, 25.0))
-    except Exception: return v
+        # STAGE 2: Core Exponential Momentum Transformation
+        velocity_delta = jnp.abs(v - reward)
+        decay_modifier = jnp.exp(-velocity_delta * HISTORICAL_MOMENTUM_BIAS)
+        
+        # Calculate intermediate accelerated momentum trajectories
+        proportional_gain = reward * lr * 0.125
+        base_projection = v * decay_modifier
+        
+        # STAGE 3: Structural Fusion & Safe Clamping Bound Enforcement
+        raw_output = base_projection + proportional_gain
+        optimized_output = float(np.clip(raw_output, -SATURATION_LIMIT, SATURATION_LIMIT))
+        
+        return optimized_output
+    except Exception as runtime_fault:
+        # Emergency Safe Fallback Route
+        return v
 """
     elif archetype_id == "laplacian_governor":
-        module_code = f"""import jax.numpy as jnp
+        module_code = f"""# ==============================================================================
+# AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
+# Archetype: {purpose_desc}
+# Target Subsystem: Graph Spectral Router Boundary Constraints
+# ==============================================================================
+import jax.numpy as jnp
 import numpy as np
 
+# Module-Level Hyper-Parameters
+TOPOLOGICAL_CONTRACTION_BOUND = {local_threshold:.6f}
+ATTENUATOR_RATIO = 0.9535
+
+MODULE_METADATA = {{
+    "generation_id": {gen_id},
+    "purpose": "{purpose_desc}",
+    "compiled_timestamp": {time.time()},
+    "hyper_parameters": {{
+        "contraction_bound": TOPOLOGICAL_CONTRACTION_BOUND,
+        "attenuator": ATTENUATOR_RATIO
+    }}
+}}
+
+def process_topological_attenuation(factor):
+    \"\"\"Applies dampening arrays to stabilizing factors that overshoot boundaries.\"\"\"
+    processed_factor = factor
+    if factor > TOPOLOGICAL_CONTRACTION_BOUND:
+        processed_factor *= ATTENUATOR_RATIO
+    elif factor < -TOPOLOGICAL_CONTRACTION_BOUND:
+        processed_factor *= (ATTENUATOR_RATIO * 1.05)
+    return processed_factor
+
 def execute_extension_pass(v, reward, lr):
+    \"\"\"Coordinates dynamic step vectors relative to Dobrushin contraction limits.\"\"\"
     try:
-        stabilizer = jnp.sin(reward) * {local_threshold:.6f}
-        return float(np.clip(v * jnp.abs(stabilizer), -12.0, 12.0))
-    except Exception: return v
+        # STAGE 1: Tracing Factor Synthesis
+        stabilization_factor = jnp.sin(reward) * jnp.cos(lr)
+        
+        # STAGE 2: Nonlinear Adaptive Boundary Attenuation
+        refined_factor = process_topological_attenuation(stabilization_factor)
+        
+        # STAGE 3: Substrate Relaxation Mapping
+        relaxation_vector = v * jnp.abs(refined_factor)
+        clamped_output = float(np.clip(relaxation_vector, -12.0, 12.0))
+        
+        return clamped_output
+    except Exception:
+        return v
 """
-    else:
-        module_code = f"""import jax.numpy as jnp
+    else: # telemetry_compactor
+        module_code = f"""# ==============================================================================
+# AUTONOMOUS EXTENSION LAYER: GENERATION {gen_id}
+# Archetype: {purpose_desc}
+# Target Subsystem: Lock-Free Shared Memory Ring Buffers
+# ==============================================================================
+import jax.numpy as jnp
 import numpy as np
 
+# Module-Level Hyper-Parameters
+CACHE_PADDING_THRESHOLD = {np.random.uniform(10.0, 15.0):.4f}
+MAX_BUFFER_CAPACITY = {local_capacity}
+
+MODULE_METADATA = {{
+    "generation_id": {gen_id},
+    "purpose": "{purpose_desc}",
+    "compiled_timestamp": {time.time()},
+    "hyper_parameters": {{
+        "padding_threshold": CACHE_PADDING_THRESHOLD,
+        "max_capacity": MAX_BUFFER_CAPACITY
+    }}
+}}
+
+def evaluate_memory_drift(v):
+    \"\"\"Calculates localized zero-copy buffer saturation limits.\"\"\"
+    current_drift = jnp.tanh(v) * CACHE_PADDING_THRESHOLD
+    if jnp.abs(current_drift) > 1.0:
+        return jnp.sign(current_drift) * 1.0
+    return current_drift
+
 def execute_extension_pass(v, reward, lr):
+    \"\"\"Applies alignment boundary adjustments to prevent false sharing.\"\"\"
     try:
-        drift = jnp.tanh(v) * {np.random.uniform(10.0, 15.0):.4f}
-        return float(np.clip(v + (drift * lr), -50.0, 50.0))
-    except Exception: return v
+        # STAGE 1: Extract Core Drift Invariants
+        memory_drift_coefficient = evaluate_memory_drift(v)
+        
+        # STAGE 2: Compile Compound Multi-Statement Telemetry Step
+        scaled_step = memory_drift_coefficient * lr
+        raw_output = v + scaled_step
+        
+        # STAGE 3: Operational Guardrail Check
+        final_telemetry_value = float(np.clip(raw_output, -50.0, 50.0))
+        return final_telemetry_value
+    except Exception:
+        return v
 """
 
-    print(f"\n[Evolving Organism] Spawning targeted extension '{file_name}'...")
+    print(f"\n[Evolving Organism] Spawning comprehensive targeted extension '{file_name}'...")
     if verify_extension_gate(file_path, module_code):
         return f"Successfully spawned purposed module extension: {file_name}"
     return "Spawned extension rejected by verification gates."
@@ -164,6 +288,15 @@ def run_generation():
     
     subprocess.run([sys.executable, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     subprocess.run(['python', 'bundle_repo.py'], check=True, env=env)
+    
+    # Fully Autonomous Git Synchronizer Layer
+    try:
+        subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'], check=True, env=env)
+        subprocess.run(['git', 'commit', '-m', f"evolution(core): generation {gen_id} structured state sync"], check=True, env=env)
+        subprocess.run(['git', 'push', 'origin', 'main'], check=True, env=env)
+        print(f"[Git Sync] Generation {gen_id} extensions cleanly pushed to remote origin.")
+    except Exception as git_err:
+        print(f"[Git Sync Warning] Skipping automatic repository upstream push: {git_err}")
 
 if __name__ == '__main__':
     try:

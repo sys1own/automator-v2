@@ -949,20 +949,20 @@ if __name__ == '__main__':
 
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
---- Framework Active | Base Matrix-Free Spectral Path ---
-Round 1/3000 | Velocity: 5.0787
-Round 500/3000 | Velocity: 5.0898
-Round 1000/3000 | Velocity: 5.1007
-Round 1500/3000 | Velocity: 5.1115
-Round 2000/3000 | Velocity: 5.1218
-Round 2500/3000 | Velocity: 5.1315
-Round 3000/3000 | Velocity: 5.1409
+--- Framework Active | Gated MoE over 1 Evolved Experts ---
+Round 1/3000 | Velocity: 5.0840
+Round 500/3000 | Velocity: 12.0090
+Round 1000/3000 | Velocity: 12.1877
+Round 1500/3000 | Velocity: 12.0529
+Round 2000/3000 | Velocity: 12.0801
+Round 2500/3000 | Velocity: 12.2367
+Round 3000/3000 | Velocity: 12.1749
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 63,
-    "best_velocity": 6.3083,
+    "global_generation": 64,
+    "best_velocity": 12.1749,
     "mutation_history": [
         {
             "generation": 16,
@@ -1221,6 +1221,12 @@ Round 3000/3000 | Velocity: 5.1409
             "timestamp": 1780142489.641513,
             "velocity": 5.1409,
             "action": "Successfully spawned purposed module extension: ext_hybrid_laplacian_momentum_gen_63_1780142475.py"
+        },
+        {
+            "generation": 64,
+            "timestamp": 1780142874.3157492,
+            "velocity": 12.1749,
+            "action": "Spawned extension rejected by verification gates."
         }
     ],
     "active_parameters": {

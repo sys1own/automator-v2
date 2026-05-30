@@ -1,62 +1,48 @@
-name: Autonomous Framework Evolution Flow
+name: Autonomous Substrate Evolution Loop
 
 on:
   push:
-    branches: [ main ]          # a PAT-authorized push re-triggers this workflow (the loop)
-    paths:                       # ...but only when evolution artifacts change, not docs/CI edits
-      - 'src/extensions/**'
-      - 'context/**'
-      - 'repo_context_bundle.txt'
-      - 'hyper_evolution_harness.py'
-  schedule:
-    - cron: '*/20 * * * *'      # safety heartbeat: also kicks off every 20 minutes
-  workflow_dispatch:            # manual trigger via the GitHub UI
+    branches:
+      - main  # Change this to match your active development branch if not main
 
-# Default GITHUB_TOKEN write access (used as a fallback if no PAT secret is set).
-permissions:
-  contents: write
-
-# Only one evolutionary run at a time. A newer run waits rather than racing a
-# runner that is mid-push, which keeps the self-triggering loop from stampeding.
+# Concurrency Gate: Ensures only ONE evolutionary runner executes at any given moment.
+# Subsequent runs triggered by automated pushes will queue up in a perfect, serialized line.
 concurrency:
-  group: evolution-${{ github.ref }}
+  group: substrate-evolution-gate
   cancel-in-progress: false
 
 jobs:
-  evolve-substrate:
+  evolve:
     runs-on: ubuntu-latest
-    # KILL SWITCH: set repository variable EVOLUTION_ENABLED to 'false'
-    # (Settings -> Secrets and variables -> Actions -> Variables) to pause the
-    # loop without editing this file. Defaults to enabled when the var is unset.
-    if: ${{ vars.EVOLUTION_ENABLED != 'false' }}
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout Repository State
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # Use the Evolution PAT so the harness's push is authorized by a user
-          # token. GitHub intentionally does NOT re-trigger workflows for pushes
-          # made with the default GITHUB_TOKEN (anti-recursion); a PAT push does,
-          # which is what closes the continuous self-improving loop.
-          # Falls back to GITHUB_TOKEN if the secret is not configured.
-          token: ${{ secrets.EVOLUTION_PAT || github.token }}
-          persist-credentials: true
-          fetch-depth: 0          # full history so 'git pull --rebase' works on the runner
+          # CRITICAL: To allow automated pushes to trigger the next workflow run recursively,
+          # you must use a Personal Access Token (PAT) here instead of the default GITHUB_TOKEN.
+          token: ${{ secrets.EVOLUTION_PAT }}
+          fetch-depth: 0
 
-      - name: Initialize Python Environment
+      - name: Set up Python Environment
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip'
 
-      - name: Materialize Runtime Framework Dependencies
+      - name: Install Foundational Substrate Dependencies
         run: |
-          pip install numpy jax jaxlib scipy psutil pytest typing-extensions
+          python -m pip install --upgrade pip
+          pip install numpy scipy typing-extensions
+          pip install --upgrade "jax[cpu]"
 
-      - name: Configure Automated Git Run Identity
+      - name: Inject Git Identity Primitives
         run: |
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          git config --local user.email "autonomous-bot@substrate-framework.ai"
+          git config --local user.name "Substrate Evolution Loop"
 
-      - name: Run Multi-Stage Optimization Flight
+      - name: Execute Autonomous Generation Flight
         run: |
           python hyper_evolution_harness.py

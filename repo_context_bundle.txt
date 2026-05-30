@@ -950,19 +950,19 @@ if __name__ == '__main__':
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
 --- Framework Active | Gated MoE over 5 Evolved Experts ---
-Round 1/3000 | Velocity: 5.1489
-Round 500/3000 | Velocity: 508.0424
-Round 1000/3000 | Velocity: 510.4430
-Round 1500/3000 | Velocity: 504.3912
-Round 2000/3000 | Velocity: 508.3077
-Round 2500/3000 | Velocity: 509.1510
-Round 3000/3000 | Velocity: 508.2454
+Round 1/3000 | Velocity: 5.1062
+Round 500/3000 | Velocity: 508.1934
+Round 1000/3000 | Velocity: 511.1618
+Round 1500/3000 | Velocity: 510.8522
+Round 2000/3000 | Velocity: 508.4240
+Round 2500/3000 | Velocity: 512.5534
+Round 3000/3000 | Velocity: 509.4564
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 94,
-    "best_velocity": 508.2454,
+    "global_generation": 95,
+    "best_velocity": 509.4564,
     "mutation_history": [
         {
             "generation": 16,
@@ -1407,6 +1407,12 @@ Round 3000/3000 | Velocity: 508.2454
             "timestamp": 1780153784.6540308,
             "velocity": 508.2454,
             "action": "Spawned extension rejected by verification gates."
+        },
+        {
+            "generation": 95,
+            "timestamp": 1780154108.051696,
+            "velocity": 509.4564,
+            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_95_1780154096.py"
         }
     ],
     "active_parameters": {
@@ -2958,6 +2964,57 @@ def execute_extension_pass(v, reward, lr):
         factor = jnp.clip(factor_a, 0.01, 5.460)
         step_delta = factor * lr_val * v_val * reward_jax * 0.2374
         ceiling = float(np.maximum(50.0, jnp.abs(v_val) * 2.214))
+        return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
+    except Exception: return v
+
+
+--- FILE: src/extensions/ext_laplacian_governor_gen_95_1780154096.py ---
+# ==============================================================================
+# AUTONOMOUS EXTENSION LAYER: GENERATION 95
+# Archetype: Spectral Router Topology Controller
+# Synthesis: Stochastic Pure (laplacian_governor)
+# ==============================================================================
+import jax.numpy as jnp
+import numpy as np
+
+MODULE_METADATA = {
+    "generation_id": 95,
+    "purpose": "Spectral Router Topology Controller",
+    "compiled_timestamp": 1780154096.2491577,
+    "hyper_parameters": {
+        "regime": "Stochastic Pure (laplacian_governor)",
+        "primary_archetype": "laplacian_governor",
+        "secondary_archetype": "None",
+        "blend_op": "none",
+        "nonlinearity": "arctan",
+        "reward_modulation": "(jnp.arctan(reward_jax) + reward_jax)",
+        "edge_weight": 1.273957,
+        "safety_ratio": 1.064678,
+        "factor_ceiling": 4.780061,
+        "step_scale": 0.455438,
+        "threshold_bias": 1.315467
+    }
+}
+
+def verify_system_state(v, reward):
+    if np.isnan(v) or np.isinf(v): return False
+    if np.isnan(reward) or np.isinf(reward): return False
+    return True
+
+def execute_extension_pass(v, reward, lr):
+    if not verify_system_state(v, reward): return v
+    try:
+        v_val, r_val, lr_val = float(v), float(reward), float(lr)
+        reward_jax = jnp.array(r_val, dtype=jnp.float32)
+        v_jax = jnp.array(v_val, dtype=jnp.float32)
+        lapvec_factor_a = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
+        lapvec_factor_a = lapvec_factor_a / (jnp.linalg.norm(lapvec_factor_a) + 1e-8)
+        lapstep_factor_a = lapvec_factor_a - 0.5 * (jnp.roll(lapvec_factor_a, -1) + jnp.roll(lapvec_factor_a, 1)) * 1.2740
+        ritz_factor_a = jnp.dot(lapvec_factor_a, lapstep_factor_a) / (jnp.dot(lapvec_factor_a, lapvec_factor_a) + 1e-8)
+        factor_a = jnp.clip(jnp.abs(jnp.arctan(ritz_factor_a)), 0.05, 4.780)
+        factor = jnp.clip(factor_a, 0.01, 4.780)
+        step_delta = factor * lr_val * v_val * (jnp.arctan(reward_jax) + reward_jax) * 0.4554
+        ceiling = float(np.maximum(25.0, jnp.abs(v_val) * 2.230))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
     except Exception: return v
 

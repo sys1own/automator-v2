@@ -18,7 +18,7 @@ class AcceleratedSubstrateFlow:
     @jax.jit
     def jit_weight_mutation(weights, delta, floor=-0.5):
         'XLA-compiled weight mutation loop.'
-        return jnp.clip(weights + delta + delta, floor, 100.0)
+        return jnp.clip(weights + delta + delta, floor, 500.0)
 
     @staticmethod
     @jax.jit

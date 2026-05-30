@@ -24,7 +24,7 @@ def load_evolution_state():
         "global_generation": 0,
         "best_velocity": 0.0,
         "mutation_history": [],
-        "active_parameters": {"decay_coefficient": 0.95, "clipping_ceiling": 12.0}
+        "active_parameters": {"decay_coefficient": 0.95, "clipping_ceiling": 500.0}
     }
 
 def save_evolution_state(state):

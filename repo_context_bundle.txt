@@ -950,18 +950,18 @@ if __name__ == '__main__':
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
 --- Framework Active | Gated MoE over 3 Evolved Experts ---
-Round 1/3000 | Velocity: 5.1882
-Round 500/3000 | Velocity: 101.1016
-Round 1000/3000 | Velocity: 100.8581
-Round 1500/3000 | Velocity: 101.9639
-Round 2000/3000 | Velocity: 101.1514
-Round 2500/3000 | Velocity: 102.3102
-Round 3000/3000 | Velocity: 102.2363
+Round 1/3000 | Velocity: 5.1804
+Round 500/3000 | Velocity: 101.4747
+Round 1000/3000 | Velocity: 101.5197
+Round 1500/3000 | Velocity: 102.0051
+Round 2000/3000 | Velocity: 102.2925
+Round 2500/3000 | Velocity: 102.3970
+Round 3000/3000 | Velocity: 101.3480
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 79,
+    "global_generation": 80,
     "best_velocity": 102.2951,
     "mutation_history": [
         {
@@ -1316,6 +1316,12 @@ Round 3000/3000 | Velocity: 102.2363
             "generation": 79,
             "timestamp": 1780148613.605679,
             "velocity": 102.2363,
+            "action": "Spawned extension rejected by verification gates."
+        },
+        {
+            "generation": 80,
+            "timestamp": 1780148932.0115464,
+            "velocity": 101.348,
             "action": "Spawned extension rejected by verification gates."
         }
     ],

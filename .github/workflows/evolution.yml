@@ -1,23 +1,47 @@
 name: Autonomous Framework Evolution Flow
 
 on:
+  push:
+    branches: [ main ]          # a PAT-authorized push re-triggers this workflow (the loop)
+    paths:                       # ...but only when evolution artifacts change, not docs/CI edits
+      - 'src/extensions/**'
+      - 'context/**'
+      - 'repo_context_bundle.txt'
+      - 'hyper_evolution_harness.py'
   schedule:
-    - cron: '*/20 * * * *' # Triggers automatically every 20 minutes
-  workflow_dispatch:      # Allows manual trigger via GitHub UI
+    - cron: '*/20 * * * *'      # safety heartbeat: also kicks off every 20 minutes
+  workflow_dispatch:            # manual trigger via the GitHub UI
 
-# THE CRUCIAL FIX: Explicitly allow the workflow runner to write back to the repo
+# Default GITHUB_TOKEN write access (used as a fallback if no PAT secret is set).
 permissions:
   contents: write
+
+# Only one evolutionary run at a time. A newer run waits rather than racing a
+# runner that is mid-push, which keeps the self-triggering loop from stampeding.
+concurrency:
+  group: evolution-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   evolve-substrate:
     runs-on: ubuntu-latest
-    
+    # KILL SWITCH: set repository variable EVOLUTION_ENABLED to 'false'
+    # (Settings -> Secrets and variables -> Actions -> Variables) to pause the
+    # loop without editing this file. Defaults to enabled when the var is unset.
+    if: ${{ vars.EVOLUTION_ENABLED != 'false' }}
+
     steps:
       - name: Checkout Repository State
         uses: actions/checkout@v4
         with:
-          persist-credentials: true 
+          # Use the Evolution PAT so the harness's push is authorized by a user
+          # token. GitHub intentionally does NOT re-trigger workflows for pushes
+          # made with the default GITHUB_TOKEN (anti-recursion); a PAT push does,
+          # which is what closes the continuous self-improving loop.
+          # Falls back to GITHUB_TOKEN if the secret is not configured.
+          token: ${{ secrets.EVOLUTION_PAT || github.token }}
+          persist-credentials: true
+          fetch-depth: 0          # full history so 'git pull --rebase' works on the runner
 
       - name: Initialize Python Environment
         uses: actions/setup-python@v5

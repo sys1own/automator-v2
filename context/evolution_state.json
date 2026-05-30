@@ -1,5 +1,5 @@
 {
-    "global_generation": 124,
+    "global_generation": 125,
     "best_velocity": 531.1097,
     "mutation_history": [
         {
@@ -624,7 +624,13 @@
             "generation": 124,
             "timestamp": 1780163776.540813,
             "velocity": 510.1349,
-            "action": "Successfully spawned purposed module extension: ext_hybrid_laplacian_telemetry_gen_124_1780163764.py"
+            "action": "PRUNED due to performance degradation (Velocity: 502.7446)"
+        },
+        {
+            "generation": 125,
+            "timestamp": 1780164113.7238069,
+            "velocity": 502.7446,
+            "action": "Spawned extension rejected by verification gates."
         }
     ],
     "active_parameters": {

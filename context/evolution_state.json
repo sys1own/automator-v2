@@ -1,6 +1,6 @@
 {
-    "global_generation": 75,
-    "best_velocity": 101.8474,
+    "global_generation": 76,
+    "best_velocity": 101.8963,
     "mutation_history": [
         {
             "generation": 16,
@@ -331,6 +331,12 @@
             "timestamp": 1780147340.0103438,
             "velocity": 101.4524,
             "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_75_1780147329.py"
+        },
+        {
+            "generation": 76,
+            "timestamp": 1780147658.402613,
+            "velocity": 101.8963,
+            "action": "Spawned extension rejected by verification gates."
         }
     ],
     "active_parameters": {

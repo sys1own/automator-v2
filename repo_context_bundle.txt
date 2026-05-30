@@ -980,18 +980,18 @@ if __name__ == '__main__':
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
 --- Framework Active | Gated MoE over 3 Evolved Experts ---
-Round 1/3000 | Velocity: 4.7689
-Round 500/3000 | Velocity: 1.9285
-Round 1000/3000 | Velocity: 1.9807
-Round 1500/3000 | Velocity: 1.9664
-Round 2000/3000 | Velocity: 1.9312
-Round 2500/3000 | Velocity: 1.9597
-Round 3000/3000 | Velocity: 2.0277
+Round 1/3000 | Velocity: 4.5626
+Round 500/3000 | Velocity: 1.4937
+Round 1000/3000 | Velocity: 1.5484
+Round 1500/3000 | Velocity: 1.4738
+Round 2000/3000 | Velocity: 1.4882
+Round 2500/3000 | Velocity: 1.5205
+Round 3000/3000 | Velocity: 1.4514
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 29,
+    "global_generation": 30,
     "best_velocity": 5.1409,
     "mutation_history": [
         {
@@ -1016,7 +1016,13 @@ Round 3000/3000 | Velocity: 2.0277
             "generation": 29,
             "timestamp": 1780132045.082149,
             "velocity": 2.0277,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_29_1780132034.py"
+            "action": "PRUNED due to performance degradation (Velocity: 1.4514)"
+        },
+        {
+            "generation": 30,
+            "timestamp": 1780132341.8106637,
+            "velocity": 1.4514,
+            "action": "Successfully spawned purposed module extension: ext_hybrid_momentum_telemetry_gen_30_1780132330.py"
         }
     ],
     "active_parameters": {
@@ -2013,31 +2019,31 @@ def verify_downstream_boundaries(nodes, imports):
     return True
 
 
---- FILE: src/extensions/ext_momentum_dampener_gen_29_1780132034.py ---
+--- FILE: src/extensions/ext_hybrid_momentum_telemetry_gen_30_1780132330.py ---
 # ==============================================================================
-# AUTONOMOUS EXTENSION LAYER: GENERATION 29
+# AUTONOMOUS EXTENSION LAYER: GENERATION 30
 # Archetype: Velocity Momentum Tracking Layer
-# Synthesis: Stochastic Pure (momentum_dampener)
+# Synthesis: Stochastic Hybrid (momentum_dampener x telemetry_compactor via wsum)
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
 
 MODULE_METADATA = {
-    "generation_id": 29,
+    "generation_id": 30,
     "purpose": "Velocity Momentum Tracking Layer",
-    "compiled_timestamp": 1780132034.1553793,
+    "compiled_timestamp": 1780132330.7324834,
     "hyper_parameters": {
-        "regime": "Stochastic Pure (momentum_dampener)",
+        "regime": "Stochastic Hybrid (momentum_dampener x telemetry_compactor via wsum)",
         "primary_archetype": "momentum_dampener",
-        "secondary_archetype": "None",
-        "blend_op": "none",
-        "nonlinearity": "sin",
-        "reward_modulation": "(jnp.sin(reward_jax) + reward_jax)",
-        "edge_weight": 1.469741,
-        "safety_ratio": 0.602310,
-        "factor_ceiling": 1.551100,
-        "step_scale": 0.111182,
-        "threshold_bias": 0.731606
+        "secondary_archetype": "telemetry_compactor",
+        "blend_op": "wsum",
+        "nonlinearity": "softsign+gauss",
+        "reward_modulation": "jnp.abs(jnp.arctan(reward_jax))",
+        "edge_weight": 1.320528,
+        "safety_ratio": 1.303445,
+        "factor_ceiling": 5.802175,
+        "step_scale": 0.088846,
+        "threshold_bias": 0.762688
     }
 }
 
@@ -2058,12 +2064,17 @@ def execute_extension_pass(v, reward, lr):
         trackerr_factor_a = jnp.abs(v_jax - reward_jax)
         regular_factor_a = jnp.maximum(1e-5, trackerr_factor_a * lr_val)
         hessian_factor_a = 1.0 + regular_factor_a * jnp.square(v_jax - reward_jax)
-        factor_a = jnp.clip(jnp.abs(jnp.sin(1.0 / (hessian_factor_a + 1e-8))), 0.05, 1.551)
-        factor = jnp.clip(factor_a, 0.01, 1.551)
+        factor_a = jnp.clip(jnp.abs(((1.0 / (hessian_factor_a + 1e-8)) / (1.0 + jnp.abs(1.0 / (hessian_factor_a + 1e-8))))), 0.05, 5.802)
+        p1_factor_b = 1.0 / (1.0 + jnp.exp(-jnp.clip(v_jax, -10.0, 10.0)))
+        belief_factor_b = jnp.array([p1_factor_b, 1.0 - p1_factor_b])
+        shannon_factor_b = -jnp.sum(belief_factor_b * jnp.log(belief_factor_b + 1e-12))
+        dob_factor_b = 1.0 - (jnp.min(belief_factor_b) / (jnp.max(belief_factor_b) + 1e-12))
+        factor_b = jnp.clip(jnp.abs(jnp.exp(-jnp.square(jnp.clip(shannon_factor_b * dob_factor_b, -3.0, 3.0)))) * 1.3034, 0.01, 5.802)
+        factor = jnp.clip((0.7 * factor_a + 0.3 * factor_b), 0.01, 5.802)
 
         # STAGE 3: Relative step scaling (reward as directional variance amplifier)
-        step_delta = factor * lr_val * v_val * (jnp.sin(reward_jax) + reward_jax) * 0.1112
-        ceiling = float(np.maximum(50.0, jnp.abs(v_val) * 1.840))
+        step_delta = factor * lr_val * v_val * jnp.abs(jnp.arctan(reward_jax)) * 0.0888
+        ceiling = float(np.maximum(12.0, jnp.abs(v_val) * 1.740))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
     except Exception: return v
 

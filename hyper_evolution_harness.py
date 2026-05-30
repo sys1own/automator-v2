@@ -355,6 +355,59 @@ def _rolling_success_average(history, window=PRUNE_ROLLING_WINDOW):
     return (sum(recent) / len(recent)) if recent else None
 
 
+def _git_sync_push(gen_id, env, max_attempts=4):
+    """Commit this generation's artifacts and push with rebase-based conflict
+    recovery, so concurrent CI runners in the self-triggering loop never wedge.
+
+    - 'nothing to commit' is treated as success (a no-op cycle, not a failure).
+    - Before each push we 'git pull --rebase' to absorb whatever another active
+      runner may have pushed meanwhile, then push with exponential backoff.
+    - A genuine rebase conflict is aborted cleanly (never left half-applied) and
+      the cycle is skipped, so the pipeline degrades gracefully instead of
+      getting permanently stuck.
+    """
+    try:
+        subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'],
+                       check=True, env=env)
+        # Nothing staged => this generation changed no tracked files; not an error.
+        if subprocess.run(['git', 'diff', '--cached', '--quiet'], env=env).returncode == 0:
+            print(f"[Git Sync] Generation {gen_id} produced no tracked changes; nothing to push.")
+            return
+        subprocess.run(['git', 'commit', '-m',
+                        f"evolution(core): generation {gen_id} structured state sync"],
+                       check=True, env=env)
+    except Exception as commit_err:
+        print(f"[Git Sync Warning] Could not stage/commit generation {gen_id}: {commit_err}")
+        return
+
+    branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                            capture_output=True, text=True, env=env).stdout.strip() or 'HEAD'
+
+    delay = 2
+    for attempt in range(1, max_attempts + 1):
+        # Reconcile with any commit another active runner pushed meanwhile.
+        pull = subprocess.run(['git', 'pull', '--rebase', 'origin', branch],
+                              capture_output=True, text=True, env=env)
+        if pull.returncode != 0:
+            subprocess.run(['git', 'rebase', '--abort'], env=env)
+            print(f"[Git Sync Warning] Rebase conflict on attempt {attempt}; aborted to avoid a "
+                  f"wedged tree. Skipping push this cycle (next run will reconcile).")
+            return
+        push = subprocess.run(['git', 'push', 'origin', 'HEAD'],
+                              capture_output=True, text=True, env=env)
+        if push.returncode == 0:
+            print(f"[Git Sync] Generation {gen_id} pushed to origin/{branch} "
+                  f"(attempt {attempt}); next evolutionary run will trigger.")
+            return
+        print(f"[Git Sync] Push attempt {attempt}/{max_attempts} failed "
+              f"(another runner may have raced); retrying in {delay}s...")
+        time.sleep(delay)
+        delay *= 2
+
+    print(f"[Git Sync Warning] Could not push generation {gen_id} after {max_attempts} attempts; "
+          f"commit left local. Next run will reconcile and re-push.")
+
+
 def run_generation():
     state = load_evolution_state()
     state["global_generation"] += 1
@@ -419,13 +472,7 @@ def run_generation():
     subprocess.run([sys.executable, '-m', 'src.main', '--input', 'tasks.json', '--max-rounds', '1'], check=True, capture_output=True, env=env)
     subprocess.run(['python', 'bundle_repo.py'], check=True, env=env)
 
-    try:
-        subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'], check=True, env=env)
-        subprocess.run(['git', 'commit', '-m', f"evolution(core): generation {gen_id} structured state sync"], check=True, env=env)
-        subprocess.run(['git', 'push', 'origin', 'HEAD'], check=True, env=env)
-        print(f"[Git Sync] Generation {gen_id} extensions cleanly pushed to remote origin.")
-    except Exception as git_err:
-        print(f"[Git Sync Warning] Skipping automatic repository upstream push: {git_err}")
+    _git_sync_push(gen_id, env)
 
 if __name__ == '__main__':
     try:

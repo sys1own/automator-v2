@@ -20,14 +20,14 @@ from src.vfs.cow_overlay import MvccSnapshotRegistry
 OPTIMISTIC_BASELINE = 1.0
 # Softmax temperature for the gate. Lower => sharper preference for the best
 # experts; higher => closer to uniform averaging.
-GATE_TEMPERATURE = 0.5
+GATE_TEMPERATURE = 0.2
 # Moving-average rate for the per-expert performance score and velocity EMA.
 SCORE_EMA_ALPHA = 0.05
 # Minimum rounds an expert must be evaluated before it is eligible for archiving.
 MIN_EVAL_WINDOW = 200
 # Archive an expert once its rolling proposed-velocity falls below this fraction
 # of the live baseline engine velocity (i.e. it is persistently diluting rounds).
-ARCHIVE_VELOCITY_FRACTION = 0.40
+ARCHIVE_VELOCITY_FRACTION = 0.90
 
 
 def _softmax(values, temperature):

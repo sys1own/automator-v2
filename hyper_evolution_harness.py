@@ -54,20 +54,16 @@ PRUNE_ROLLING_WINDOW = 3       # rolling-average window over recent successful g
 PROFILE_ROUNDS = 50            # short profiling flight length (vs the 3000-round full channel)
 PROFILE_DROP_TOLERANCE = 0.95  # candidate must reach >= 95% of the no-extension baseline velocity
 
-
 def _final_velocity_from_output(stdout):
-    """Parse every 'Velocity: X' value a flight printed; return (final, all_values)."""
     vels = []
     for raw in re.findall(r"Velocity:\s*(\S+)", stdout or ""):
         try:
             vels.append(float(raw))
         except ValueError:
-            vels.append(float("nan"))  # e.g. a literal 'nan'/'inf' token
+            vels.append(float("nan"))
     return (vels[-1] if vels else None), vels
 
-
 def _run_profile_flight(rounds, env):
-    """Run one short src.main profiling flight; return (returncode, final_v, all_vels, output)."""
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "src.main", "--input", "tasks.json",
@@ -80,20 +76,7 @@ def _run_profile_flight(rounds, env):
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     return proc.returncode, final_v, vels, output
 
-
 def verify_extension_gate(file_path, content):
-    """Performance-profiling guardian gate (fast feedback before the full flight).
-
-    Static screen (AST parse + compile), then a two-stage profiling screen that
-    rejects regressive mutations BEFORE they reach the 3000-round channel:
-      Stage A: baseline PROFILE_ROUNDS flight with the candidate NOT loaded.
-      Stage B: PROFILE_ROUNDS flight with the candidate written in.
-    Reject (and delete the file) on: crash, NaN/Inf/FATAL in the profiled
-    velocities, or an immediate performance drop below PROFILE_DROP_TOLERANCE of
-    the baseline velocity. File operations are preserved: the candidate is only
-    written after it parses, and is removed on every rejection path.
-    """
-    # --- Static gate: never touch disk / run anything on un-parseable code ---
     try:
         ast.parse(content)
         compile(content, file_path, "exec")
@@ -105,14 +88,11 @@ def verify_extension_gate(file_path, content):
     env = os.environ.copy()
     env["PYTHONPATH"] = os.getcwd()
 
-    # --- Stage A: baseline profile WITHOUT the candidate (file not yet written) ---
     base_rc, base_v, _, _ = _run_profile_flight(PROFILE_ROUNDS, env)
     if base_rc != 0 or base_v is None or not np.isfinite(base_v):
-        print(f"[Guardian Warn] Baseline profile unavailable (rc={base_rc}, v={base_v}); "
-              f"screening candidate on absolute health only.")
+        print(f"[Guardian Warn] Baseline profile unavailable (rc={base_rc}, v={base_v}); screening candidate on absolute health only.")
         base_v = None
 
-    # --- Write the candidate so the next flight loads it ---
     try:
         with open(file_path, "w") as f:
             f.write(content)
@@ -120,7 +100,6 @@ def verify_extension_gate(file_path, content):
         print(f"[Guardian Failed] Could not write candidate file: {e}")
         return False
 
-    # --- Stage B: profile WITH the candidate loaded ---
     cand_rc, cand_v, cand_vels, cand_out = _run_profile_flight(PROFILE_ROUNDS, env)
 
     if cand_rc != 0:
@@ -134,8 +113,7 @@ def verify_extension_gate(file_path, content):
         return False
 
     if base_v is not None and cand_v < base_v * PROFILE_DROP_TOLERANCE:
-        print(f"[Guardian Failed] Candidate regressed at the gate: profile velocity {cand_v:.4f} < "
-              f"{PROFILE_DROP_TOLERANCE:.0%} of baseline {base_v:.4f}. Rejected before full flight.")
+        print(f"[Guardian Failed] Candidate regressed at the gate: profile velocity {cand_v:.4f} < {PROFILE_DROP_TOLERANCE:.0%} of baseline {base_v:.4f}. Rejected before full flight.")
         if os.path.exists(file_path): os.remove(file_path)
         return False
 
@@ -143,23 +121,6 @@ def verify_extension_gate(file_path, content):
     print(f"[Guardian Passed] Candidate cleared {PROFILE_ROUNDS}-round profiler ({detail}): {file_path}")
     return True
 
-# ---------------------------------------------------------------------------
-# Structural stochastic mutation engine
-#
-# Instead of a rigid modulo cycle over three fixed template strings, the code
-# generator now composes expert modules from vetted, always-valid building
-# blocks with three layers of stochastic variation:
-#   1. Algorithmic math variation  -> random nonlinearity primitive injected
-#      into the factor computation and into how reward modulates the step.
-#   2. Dynamic parameter synthesis  -> a negative previous-generation velocity
-#      delta triggers EXPLORE mode (blend two distinct archetypes); a positive
-#      delta triggers EXPLOIT mode (refine a single pure archetype).
-#   3. Stochastic meta-hyperparameters -> broadened random ranges baked into
-#      MODULE_METADATA so generated code explores deeper scaling regimes.
-# Every composition keeps reward as a bounded scale amplifier (never a
-# target-seeking subtraction) and is clip-bounded, so it always compiles and
-# runs through the unchanged verify_extension_gate.
-# ---------------------------------------------------------------------------
 NONLINEARITIES = ["tanh", "sin", "arctan", "softsign", "gauss"]
 BLEND_OPS = ["mean", "geom", "max", "wsum"]
 ARCHETYPE_PURPOSE = {
@@ -169,12 +130,11 @@ ARCHETYPE_PURPOSE = {
 }
 
 def _apply_nonlin(name, expr):
-    """Return a bounded JAX nonlinearity applied to `expr` (all R -> bounded)."""
     if name == "sin":      return f"jnp.sin({expr})"
     if name == "arctan":   return f"jnp.arctan({expr})"
     if name == "softsign": return f"(({expr}) / (1.0 + jnp.abs({expr})))"
     if name == "gauss":    return f"jnp.exp(-jnp.square(jnp.clip({expr}, -3.0, 3.0)))"
-    return f"jnp.tanh({expr})"  # default / "tanh"
+    return f"jnp.tanh({expr})"
 
 def _emit_laplacian(fv, nonlin, p):
     nl = _apply_nonlin(nonlin, f"ritz_{fv}")
@@ -215,22 +175,14 @@ def _blend_expr(op, a, b):
     if op == "geom": return f"jnp.sqrt(jnp.abs({a} * {b}) + 1e-8)"
     if op == "max":  return f"jnp.maximum({a}, {b})"
     if op == "wsum": return f"(0.7 * {a} + 0.3 * {b})"
-    return f"(0.5 * ({a} + {b}))"  # default / "mean"
+    return f"(0.5 * ({a} + {b}))"
 
 def _synthesize_module_code(gen_id, velocity_delta):
-    """Compose a stochastic, structurally-mutated expert module as source text.
-
-    Returns (code_str, archetype_label).
-    """
     archetypes = list(_EMITTERS.keys())
     primary = random.choice(archetypes)
-
-    # Dynamic parameter synthesis: regress (dv<0) -> EXPLORE by blending two
-    # distinct archetypes; improve/flat (dv>=0) -> EXPLOIT a single archetype.
     blend = velocity_delta < 0.0
     secondary = random.choice([a for a in archetypes if a != primary]) if blend else None
 
-    # Stochastic meta-hyperparameters (broadened ranges for deeper regimes).
     p = {
         "edge":      float(np.random.uniform(0.20, 1.50)),
         "safety":    float(np.random.uniform(0.50, 1.60)),
@@ -258,7 +210,6 @@ def _synthesize_module_code(gen_id, velocity_delta):
         nl_meta = nl_primary
         blend_op = "none"
 
-    # Algorithmic math variation on how reward modulates the (healthy) step.
     reward_mod = random.choice([
         "reward_jax",
         f"({_apply_nonlin(random.choice(NONLINEARITIES), 'reward_jax')} + reward_jax)",
@@ -303,16 +254,11 @@ def verify_system_state(v, reward):
 def execute_extension_pass(v, reward, lr):
     if not verify_system_state(v, reward): return v
     try:
-        # STAGE 1: State vector setup (reward retained as a scale amplifier)
         v_val, r_val, lr_val = float(v), float(reward), float(lr)
         reward_jax = jnp.array(r_val, dtype=jnp.float32)
         v_jax = jnp.array(v_val, dtype=jnp.float32)
-
-        # STAGE 2: Stochastically-synthesised factor computation
 {factor_code}
         factor = jnp.clip({factor_expr}, 0.01, {p['fceil']:.3f})
-
-        # STAGE 3: Relative step scaling (reward as directional variance amplifier)
         step_delta = factor * lr_val * v_val * {reward_mod} * {p['scale']:.4f}
         ceiling = float(np.maximum({p['ceil_base']:.1f}, jnp.abs(v_val) * {p['ceil_mult']:.3f}))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
@@ -321,7 +267,6 @@ def execute_extension_pass(v, reward, lr):
     return code, label
 
 def spawn_purpose_driven_module(gen_id, velocity_delta=0.0):
-    """Synthesise a stochastic, structurally-mutated expert module and validate it through the unchanged AST/runtime gate."""
     ext_dir = os.path.join("src", "extensions")
     os.makedirs(ext_dir, exist_ok=True)
 
@@ -330,8 +275,7 @@ def spawn_purpose_driven_module(gen_id, velocity_delta=0.0):
     file_path = os.path.join(ext_dir, file_name)
 
     mode = "EXPLORE(blend)" if velocity_delta < 0.0 else "EXPLOIT(pure)"
-    print(f"\n[Evolving Organism] Synthesising stochastic extension '{file_name}' "
-          f"(prev dv={velocity_delta:+.4f} -> {mode})...")
+    print(f"\n[Evolving Organism] Synthesising stochastic extension '{file_name}' (prev dv={velocity_delta:+.4f} -> {mode})...")
     if verify_extension_gate(file_path, module_code):
         return f"Successfully spawned purposed module extension: {file_name}"
     return "Spawned extension rejected by verification gates."
@@ -347,66 +291,41 @@ def self_refactor_engine(log_path):
     return None
 
 def _rolling_success_average(history, window=PRUNE_ROLLING_WINDOW):
-    """Mean velocity of the last `window` successfully-spawned (non-pruned) generations."""
     vels = [e.get("velocity") for e in history
             if isinstance(e.get("velocity"), (int, float))
             and str(e.get("action", "")).startswith("Successfully")]
     recent = vels[-window:]
     return (sum(recent) / len(recent)) if recent else None
 
-
 def _git_sync_push(gen_id, env, max_attempts=4):
-    """Commit this generation's artifacts and push with rebase-based conflict
-    recovery, so concurrent CI runners in the self-triggering loop never wedge.
-
-    - 'nothing to commit' is treated as success (a no-op cycle, not a failure).
-    - Before each push we 'git pull --rebase' to absorb whatever another active
-      runner may have pushed meanwhile, then push with exponential backoff.
-    - A genuine rebase conflict is aborted cleanly (never left half-applied) and
-      the cycle is skipped, so the pipeline degrades gracefully instead of
-      getting permanently stuck.
-    """
     try:
-        subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'],
-                       check=True, env=env)
-        # Nothing staged => this generation changed no tracked files; not an error.
+        subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'], check=True, env=env)
         if subprocess.run(['git', 'diff', '--cached', '--quiet'], env=env).returncode == 0:
             print(f"[Git Sync] Generation {gen_id} produced no tracked changes; nothing to push.")
             return
-        subprocess.run(['git', 'commit', '-m',
-                        f"evolution(core): generation {gen_id} structured state sync"],
-                       check=True, env=env)
+        subprocess.run(['git', 'commit', '-m', f"evolution(core): generation {gen_id} structured state sync"], check=True, env=env)
     except Exception as commit_err:
         print(f"[Git Sync Warning] Could not stage/commit generation {gen_id}: {commit_err}")
         return
 
-    branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-                            capture_output=True, text=True, env=env).stdout.strip() or 'HEAD'
+    local_b = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], capture_output=True, text=True, env=env).stdout.strip(); branch = 'main' if local_b == 'HEAD' else (local_b or 'main')
 
     delay = 2
     for attempt in range(1, max_attempts + 1):
-        # Reconcile with any commit another active runner pushed meanwhile.
-        pull = subprocess.run(['git', 'pull', '--rebase', 'origin', branch],
-                              capture_output=True, text=True, env=env)
+        pull = subprocess.run(['git', 'pull', '--rebase', 'origin', branch], capture_output=True, text=True, env=env)
         if pull.returncode != 0:
             subprocess.run(['git', 'rebase', '--abort'], env=env)
-            print(f"[Git Sync Warning] Rebase conflict on attempt {attempt}; aborted to avoid a "
-                  f"wedged tree. Skipping push this cycle (next run will reconcile).")
+            print(f"[Git Sync Warning] Rebase conflict on attempt {attempt}; aborted to avoid a wedged tree. Skipping push this cycle (next run will reconcile).")
             return
-        push = subprocess.run(['git', 'push', 'origin', 'HEAD'],
-                              capture_output=True, text=True, env=env)
+        push = subprocess.run(['git', 'push', 'origin', 'HEAD'], capture_output=True, text=True, env=env)
         if push.returncode == 0:
-            print(f"[Git Sync] Generation {gen_id} pushed to origin/{branch} "
-                  f"(attempt {attempt}); next evolutionary run will trigger.")
+            print(f"[Git Sync] Generation {gen_id} pushed to origin/{branch} (attempt {attempt}); next evolutionary run will trigger.")
             return
-        print(f"[Git Sync] Push attempt {attempt}/{max_attempts} failed "
-              f"(another runner may have raced); retrying in {delay}s...")
+        print(f"[Git Sync] Push attempt {attempt}/{max_attempts} failed (another runner may have raced); retrying in {delay}s...")
         time.sleep(delay)
         delay *= 2
 
-    print(f"[Git Sync Warning] Could not push generation {gen_id} after {max_attempts} attempts; "
-          f"commit left local. Next run will reconcile and re-push.")
-
+    print(f"[Git Sync Warning] Could not push generation {gen_id} after {max_attempts} attempts; commit left local. Next run will reconcile and re-push.")
 
 def run_generation():
     state = load_evolution_state()
@@ -423,20 +342,15 @@ def run_generation():
 
     current_v = self_refactor_engine('context/automator_execution.log')
 
-    # Aggressive selection pressure: a generation must clear BOTH 95% of the
-    # all-time best velocity AND the rolling average of the last few successful
-    # generations. Either shortfall triggers eviction of the predecessor module.
     peak_floor = state["best_velocity"] * PRUNE_PEAK_FRACTION if state["best_velocity"] > 0 else None
     rolling_floor = _rolling_success_average(state["mutation_history"], PRUNE_ROLLING_WINDOW)
 
     prune_reasons = []
     if current_v:
         if peak_floor is not None and current_v < peak_floor:
-            prune_reasons.append(
-                f"{current_v:.4f} < {PRUNE_PEAK_FRACTION:.0%} of best {state['best_velocity']:.4f} ({peak_floor:.4f})")
+            prune_reasons.append(f"{current_v:.4f} < {PRUNE_PEAK_FRACTION:.0%} of best {state['best_velocity']:.4f} ({peak_floor:.4f})")
         if rolling_floor is not None and current_v < rolling_floor:
-            prune_reasons.append(
-                f"{current_v:.4f} < rolling avg of last {PRUNE_ROLLING_WINDOW} successes ({rolling_floor:.4f})")
+            prune_reasons.append(f"{current_v:.4f} < rolling avg of last {PRUNE_ROLLING_WINDOW} successes ({rolling_floor:.4f})")
 
     if current_v and prune_reasons:
         print(f"\n[Natural Selection Guard] Aggressive prune | " + "; ".join(prune_reasons))
@@ -451,7 +365,6 @@ def run_generation():
                     print(f"[Pruned] Evicted regressive code asset: {target_file}")
                 last_mutation["action"] = f"PRUNED due to performance degradation (Velocity: {current_v})"
 
-    # Net velocity delta of the previous generation drives explore/exploit synthesis.
     velocity_delta = 0.0
     if current_v is not None and state["mutation_history"]:
         prev_v = state["mutation_history"][-1].get("velocity")
@@ -475,8 +388,18 @@ def run_generation():
     _git_sync_push(gen_id, env)
 
 if __name__ == '__main__':
-    try:
-        for _ in range(3): run_generation()
-    except Exception as e:
-        print(f"\n[Loop Aborted] Core variant issue: {e}")
-        sys.exit(1)
+    print("[Evolution Engine] Initiating infinite production scaling loop...")
+    generation_count = 0
+    while True:
+        try:
+            generation_count += 1
+            run_generation()
+            print(f"\n[Cooldown] Generation {generation_count} complete. Sleeping 20s for fair-use safety...")
+            time.sleep(20)
+        except KeyboardInterrupt:
+            print("\n[Loop Terminated] Infinite evolution manually stopped by operator.")
+            break
+        except Exception as e:
+            print(f"\n[Cycle Skip] Encountered transient exception: {e}")
+            print("Cooling down for 15s before attempting subsequent structural mutation...")
+            time.sleep(15)

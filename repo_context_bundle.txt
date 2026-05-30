@@ -949,19 +949,19 @@ if __name__ == '__main__':
 
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
---- Framework Active | Gated MoE over 13 Evolved Experts ---
-Round 1/3000 | Velocity: 5.2179
-Round 500/3000 | Velocity: 506.4814
-Round 1000/3000 | Velocity: 515.4880
-Round 1500/3000 | Velocity: 517.3442
-Round 2000/3000 | Velocity: 506.0561
-Round 2500/3000 | Velocity: 503.7507
-Round 3000/3000 | Velocity: 531.4116
+--- Framework Active | Gated MoE over 14 Evolved Experts ---
+Round 1/3000 | Velocity: 5.1510
+Round 500/3000 | Velocity: 503.4390
+Round 1000/3000 | Velocity: 512.6231
+Round 1500/3000 | Velocity: 529.2780
+Round 2000/3000 | Velocity: 519.8045
+Round 2500/3000 | Velocity: 505.2443
+Round 3000/3000 | Velocity: 523.7513
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 127,
+    "global_generation": 128,
     "best_velocity": 531.4116,
     "mutation_history": [
         {
@@ -1604,7 +1604,13 @@ Round 3000/3000 | Velocity: 531.4116
             "generation": 127,
             "timestamp": 1780164785.7578065,
             "velocity": 531.4116,
-            "action": "Successfully spawned purposed module extension: ext_telemetry_compactor_gen_127_1780164773.py"
+            "action": "PRUNED due to performance degradation (Velocity: 523.7513)"
+        },
+        {
+            "generation": 128,
+            "timestamp": 1780165122.6202192,
+            "velocity": 523.7513,
+            "action": "Successfully spawned purposed module extension: ext_hybrid_telemetry_laplacian_gen_128_1780165110.py"
         }
     ],
     "active_parameters": {
@@ -3110,31 +3116,31 @@ def execute_extension_pass(v, reward, lr):
     except Exception: return v
 
 
---- FILE: src/extensions/ext_telemetry_compactor_gen_127_1780164773.py ---
+--- FILE: src/extensions/ext_hybrid_telemetry_laplacian_gen_128_1780165110.py ---
 # ==============================================================================
-# AUTONOMOUS EXTENSION LAYER: GENERATION 127
+# AUTONOMOUS EXTENSION LAYER: GENERATION 128
 # Archetype: Shared Memory Boundary Filter
-# Synthesis: Stochastic Pure (telemetry_compactor)
+# Synthesis: Stochastic Hybrid (telemetry_compactor x laplacian_governor via max)
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
 
 MODULE_METADATA = {
-    "generation_id": 127,
+    "generation_id": 128,
     "purpose": "Shared Memory Boundary Filter",
-    "compiled_timestamp": 1780164773.6608052,
+    "compiled_timestamp": 1780165110.513752,
     "hyper_parameters": {
-        "regime": "Stochastic Pure (telemetry_compactor)",
+        "regime": "Stochastic Hybrid (telemetry_compactor x laplacian_governor via max)",
         "primary_archetype": "telemetry_compactor",
-        "secondary_archetype": "None",
-        "blend_op": "none",
-        "nonlinearity": "tanh",
-        "reward_modulation": "jnp.abs(jnp.arctan(reward_jax))",
-        "edge_weight": 0.896992,
-        "safety_ratio": 1.555086,
-        "factor_ceiling": 1.765240,
-        "step_scale": 0.333894,
-        "threshold_bias": 1.469561
+        "secondary_archetype": "laplacian_governor",
+        "blend_op": "max",
+        "nonlinearity": "arctan+gauss",
+        "reward_modulation": "reward_jax",
+        "edge_weight": 1.287361,
+        "safety_ratio": 1.158803,
+        "factor_ceiling": 2.448149,
+        "step_scale": 0.282150,
+        "threshold_bias": 0.600620
     }
 }
 
@@ -3153,10 +3159,15 @@ def execute_extension_pass(v, reward, lr):
         belief_factor_a = jnp.array([p1_factor_a, 1.0 - p1_factor_a])
         shannon_factor_a = -jnp.sum(belief_factor_a * jnp.log(belief_factor_a + 1e-12))
         dob_factor_a = 1.0 - (jnp.min(belief_factor_a) / (jnp.max(belief_factor_a) + 1e-12))
-        factor_a = jnp.clip(jnp.abs(jnp.tanh(shannon_factor_a * dob_factor_a)) * 1.5551, 0.01, 1.765)
-        factor = jnp.clip(factor_a, 0.01, 1.765)
-        step_delta = factor * lr_val * v_val * jnp.abs(jnp.arctan(reward_jax)) * 0.3339
-        ceiling = float(np.maximum(50.0, jnp.abs(v_val) * 2.612))
+        factor_a = jnp.clip(jnp.abs(jnp.arctan(shannon_factor_a * dob_factor_a)) * 1.1588, 0.01, 2.448)
+        lapvec_factor_b = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
+        lapvec_factor_b = lapvec_factor_b / (jnp.linalg.norm(lapvec_factor_b) + 1e-8)
+        lapstep_factor_b = lapvec_factor_b - 0.5 * (jnp.roll(lapvec_factor_b, -1) + jnp.roll(lapvec_factor_b, 1)) * 1.2874
+        ritz_factor_b = jnp.dot(lapvec_factor_b, lapstep_factor_b) / (jnp.dot(lapvec_factor_b, lapvec_factor_b) + 1e-8)
+        factor_b = jnp.clip(jnp.abs(jnp.exp(-jnp.square(jnp.clip(ritz_factor_b, -3.0, 3.0)))), 0.05, 2.448)
+        factor = jnp.clip(jnp.maximum(factor_a, factor_b), 0.01, 2.448)
+        step_delta = factor * lr_val * v_val * reward_jax * 0.2821
+        ceiling = float(np.maximum(25.0, jnp.abs(v_val) * 1.567))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
     except Exception: return v
 

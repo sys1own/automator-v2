@@ -27,7 +27,7 @@ def load_evolution_state():
         "global_generation": 0,
         "best_velocity": 0.0,
         "mutation_history": [],
-        "active_parameters": {"decay_coefficient": 0.95, "clipping_ceiling": 12.0}
+        "active_parameters": {"decay_coefficient": 0.95, "clipping_ceiling": 500.0}
     }
 
 def save_evolution_state(state):
@@ -949,20 +949,20 @@ if __name__ == '__main__':
 
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
---- Framework Active | Gated MoE over 6 Evolved Experts ---
-Round 1/3000 | Velocity: 5.1244
-Round 500/3000 | Velocity: 102.1461
-Round 1000/3000 | Velocity: 102.0935
-Round 1500/3000 | Velocity: 101.3107
-Round 2000/3000 | Velocity: 100.7282
-Round 2500/3000 | Velocity: 101.8988
-Round 3000/3000 | Velocity: 101.4079
+--- Framework Active | Gated MoE over 5 Evolved Experts ---
+Round 1/3000 | Velocity: 5.1489
+Round 500/3000 | Velocity: 508.0424
+Round 1000/3000 | Velocity: 510.4430
+Round 1500/3000 | Velocity: 504.3912
+Round 2000/3000 | Velocity: 508.3077
+Round 2500/3000 | Velocity: 509.1510
+Round 3000/3000 | Velocity: 508.2454
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 93,
-    "best_velocity": 102.2951,
+    "global_generation": 94,
+    "best_velocity": 508.2454,
     "mutation_history": [
         {
             "generation": 16,
@@ -1401,11 +1401,17 @@ Round 3000/3000 | Velocity: 101.4079
             "timestamp": 1780153329.3535495,
             "velocity": 101.4079,
             "action": "Spawned extension rejected by verification gates."
+        },
+        {
+            "generation": 94,
+            "timestamp": 1780153784.6540308,
+            "velocity": 508.2454,
+            "action": "Spawned extension rejected by verification gates."
         }
     ],
     "active_parameters": {
         "decay_coefficient": 0.95,
-        "clipping_ceiling": 12.0
+        "clipping_ceiling": 500.0
     }
 }
 
@@ -1871,7 +1877,7 @@ class AcceleratedSubstrateFlow:
     @jax.jit
     def jit_weight_mutation(weights, delta, floor=-0.5):
         'XLA-compiled weight mutation loop.'
-        return jnp.clip(weights + delta + delta, floor, 100.0)
+        return jnp.clip(weights + delta + delta, floor, 500.0)
 
     @staticmethod
     @jax.jit

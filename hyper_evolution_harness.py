@@ -48,33 +48,100 @@ def stream_flight(cmd, log_path):
     process.stdout.close()
     return process.wait()
 
+# --- Selection-pressure & guardian-profiler hyper-parameters ----------------
+PRUNE_PEAK_FRACTION = 0.95     # prune a generation below 95% of all-time best velocity
+PRUNE_ROLLING_WINDOW = 3       # rolling-average window over recent successful generations
+PROFILE_ROUNDS = 50            # short profiling flight length (vs the 3000-round full channel)
+PROFILE_DROP_TOLERANCE = 0.95  # candidate must reach >= 95% of the no-extension baseline velocity
+
+
+def _final_velocity_from_output(stdout):
+    """Parse every 'Velocity: X' value a flight printed; return (final, all_values)."""
+    vels = []
+    for raw in re.findall(r"Velocity:\s*(\S+)", stdout or ""):
+        try:
+            vels.append(float(raw))
+        except ValueError:
+            vels.append(float("nan"))  # e.g. a literal 'nan'/'inf' token
+    return (vels[-1] if vels else None), vels
+
+
+def _run_profile_flight(rounds, env):
+    """Run one short src.main profiling flight; return (returncode, final_v, all_vels, output)."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "src.main", "--input", "tasks.json",
+             "--max-rounds", str(rounds), "--learning-rate", "0.15"],
+            capture_output=True, text=True, env=env, timeout=240
+        )
+    except subprocess.TimeoutExpired:
+        return None, None, [], "TIMEOUT"
+    final_v, vels = _final_velocity_from_output(proc.stdout)
+    output = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    return proc.returncode, final_v, vels, output
+
+
 def verify_extension_gate(file_path, content):
+    """Performance-profiling guardian gate (fast feedback before the full flight).
+
+    Static screen (AST parse + compile), then a two-stage profiling screen that
+    rejects regressive mutations BEFORE they reach the 3000-round channel:
+      Stage A: baseline PROFILE_ROUNDS flight with the candidate NOT loaded.
+      Stage B: PROFILE_ROUNDS flight with the candidate written in.
+    Reject (and delete the file) on: crash, NaN/Inf/FATAL in the profiled
+    velocities, or an immediate performance drop below PROFILE_DROP_TOLERANCE of
+    the baseline velocity. File operations are preserved: the candidate is only
+    written after it parses, and is removed on every rejection path.
+    """
+    # --- Static gate: never touch disk / run anything on un-parseable code ---
     try:
         ast.parse(content)
         compile(content, file_path, "exec")
-
-        with open(file_path, "w") as f:
-            f.write(content)
-
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.getcwd()
-
-        test_run = subprocess.run(
-            [sys.executable, "-m", "src.main", "--input", "tasks.json", "--max-rounds", "2"],
-            capture_output=True, text=True, env=env
-        )
-
-        if test_run.returncode == 0:
-            print(f"[Guardian Passed] Spawned extension validated cleanly: {file_path}")
-            return True
-        else:
-            print(f"[Guardian Failed] Runtime error in spawned logic. Removing extension.")
-            if os.path.exists(file_path): os.remove(file_path)
-            return False
     except Exception as e:
         print(f"[Guardian Failed] AST Syntax error: {e}. Discarding module.")
         if os.path.exists(file_path): os.remove(file_path)
         return False
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.getcwd()
+
+    # --- Stage A: baseline profile WITHOUT the candidate (file not yet written) ---
+    base_rc, base_v, _, _ = _run_profile_flight(PROFILE_ROUNDS, env)
+    if base_rc != 0 or base_v is None or not np.isfinite(base_v):
+        print(f"[Guardian Warn] Baseline profile unavailable (rc={base_rc}, v={base_v}); "
+              f"screening candidate on absolute health only.")
+        base_v = None
+
+    # --- Write the candidate so the next flight loads it ---
+    try:
+        with open(file_path, "w") as f:
+            f.write(content)
+    except Exception as e:
+        print(f"[Guardian Failed] Could not write candidate file: {e}")
+        return False
+
+    # --- Stage B: profile WITH the candidate loaded ---
+    cand_rc, cand_v, cand_vels, cand_out = _run_profile_flight(PROFILE_ROUNDS, env)
+
+    if cand_rc != 0:
+        print(f"[Guardian Failed] Candidate crashed during {PROFILE_ROUNDS}-round profile (rc={cand_rc}). Removing.")
+        if os.path.exists(file_path): os.remove(file_path)
+        return False
+
+    if cand_v is None or any(not np.isfinite(v) for v in cand_vels) or "FATAL" in cand_out:
+        print(f"[Guardian Failed] Candidate emitted NaN/Inf/FATAL during profile. Removing.")
+        if os.path.exists(file_path): os.remove(file_path)
+        return False
+
+    if base_v is not None and cand_v < base_v * PROFILE_DROP_TOLERANCE:
+        print(f"[Guardian Failed] Candidate regressed at the gate: profile velocity {cand_v:.4f} < "
+              f"{PROFILE_DROP_TOLERANCE:.0%} of baseline {base_v:.4f}. Rejected before full flight.")
+        if os.path.exists(file_path): os.remove(file_path)
+        return False
+
+    detail = f"profile velocity {cand_v:.4f}" + (f" vs baseline {base_v:.4f}" if base_v is not None else " (no baseline)")
+    print(f"[Guardian Passed] Candidate cleared {PROFILE_ROUNDS}-round profiler ({detail}): {file_path}")
+    return True
 
 # ---------------------------------------------------------------------------
 # Structural stochastic mutation engine
@@ -279,6 +346,15 @@ def self_refactor_engine(log_path):
     except Exception: pass
     return None
 
+def _rolling_success_average(history, window=PRUNE_ROLLING_WINDOW):
+    """Mean velocity of the last `window` successfully-spawned (non-pruned) generations."""
+    vels = [e.get("velocity") for e in history
+            if isinstance(e.get("velocity"), (int, float))
+            and str(e.get("action", "")).startswith("Successfully")]
+    recent = vels[-window:]
+    return (sum(recent) / len(recent)) if recent else None
+
+
 def run_generation():
     state = load_evolution_state()
     state["global_generation"] += 1
@@ -294,8 +370,23 @@ def run_generation():
 
     current_v = self_refactor_engine('context/automator_execution.log')
 
-    if current_v and state["best_velocity"] > 0 and current_v < (state["best_velocity"] * 0.40):
-        print(f"\n[Natural Selection Guard] Performance degraded to {current_v}. Pruning underperforming predecessor...")
+    # Aggressive selection pressure: a generation must clear BOTH 95% of the
+    # all-time best velocity AND the rolling average of the last few successful
+    # generations. Either shortfall triggers eviction of the predecessor module.
+    peak_floor = state["best_velocity"] * PRUNE_PEAK_FRACTION if state["best_velocity"] > 0 else None
+    rolling_floor = _rolling_success_average(state["mutation_history"], PRUNE_ROLLING_WINDOW)
+
+    prune_reasons = []
+    if current_v:
+        if peak_floor is not None and current_v < peak_floor:
+            prune_reasons.append(
+                f"{current_v:.4f} < {PRUNE_PEAK_FRACTION:.0%} of best {state['best_velocity']:.4f} ({peak_floor:.4f})")
+        if rolling_floor is not None and current_v < rolling_floor:
+            prune_reasons.append(
+                f"{current_v:.4f} < rolling avg of last {PRUNE_ROLLING_WINDOW} successes ({rolling_floor:.4f})")
+
+    if current_v and prune_reasons:
+        print(f"\n[Natural Selection Guard] Aggressive prune | " + "; ".join(prune_reasons))
         if state["mutation_history"]:
             last_mutation = state["mutation_history"][-1]
             match = re.search(r'(ext_[\w_]+\.py)', last_mutation.get("action", ""))

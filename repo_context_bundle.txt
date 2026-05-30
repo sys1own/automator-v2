@@ -949,19 +949,19 @@ if __name__ == '__main__':
 
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
---- Framework Active | Gated MoE over 15 Evolved Experts ---
-Round 1/3000 | Velocity: 5.2107
-Round 500/3000 | Velocity: 502.2775
-Round 1000/3000 | Velocity: 525.3994
-Round 1500/3000 | Velocity: 520.1190
-Round 2000/3000 | Velocity: 526.3606
-Round 2500/3000 | Velocity: 524.5924
-Round 3000/3000 | Velocity: 506.6788
+--- Framework Active | Gated MoE over 16 Evolved Experts ---
+Round 1/3000 | Velocity: 5.2318
+Round 500/3000 | Velocity: 518.4060
+Round 1000/3000 | Velocity: 526.8437
+Round 1500/3000 | Velocity: 522.1607
+Round 2000/3000 | Velocity: 513.3366
+Round 2500/3000 | Velocity: 510.8413
+Round 3000/3000 | Velocity: 519.3039
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 133,
+    "global_generation": 134,
     "best_velocity": 531.4116,
     "mutation_history": [
         {
@@ -1640,7 +1640,13 @@ Round 3000/3000 | Velocity: 506.6788
             "generation": 133,
             "timestamp": 1780166813.0113828,
             "velocity": 506.6788,
-            "action": "Successfully spawned purposed module extension: ext_hybrid_laplacian_momentum_gen_133_1780166800.py"
+            "action": "PRUNED due to performance degradation (Velocity: 519.3039)"
+        },
+        {
+            "generation": 134,
+            "timestamp": 1780167153.3797135,
+            "velocity": 519.3039,
+            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_134_1780167141.py"
         }
     ],
     "active_parameters": {
@@ -3767,31 +3773,31 @@ def execute_extension_pass(v, reward, lr):
     except Exception: return v
 
 
---- FILE: src/extensions/ext_hybrid_laplacian_momentum_gen_133_1780166800.py ---
+--- FILE: src/extensions/ext_laplacian_governor_gen_134_1780167141.py ---
 # ==============================================================================
-# AUTONOMOUS EXTENSION LAYER: GENERATION 133
+# AUTONOMOUS EXTENSION LAYER: GENERATION 134
 # Archetype: Spectral Router Topology Controller
-# Synthesis: Stochastic Hybrid (laplacian_governor x momentum_dampener via geom)
+# Synthesis: Stochastic Pure (laplacian_governor)
 # ==============================================================================
 import jax.numpy as jnp
 import numpy as np
 
 MODULE_METADATA = {
-    "generation_id": 133,
+    "generation_id": 134,
     "purpose": "Spectral Router Topology Controller",
-    "compiled_timestamp": 1780166800.6729743,
+    "compiled_timestamp": 1780167141.2432876,
     "hyper_parameters": {
-        "regime": "Stochastic Hybrid (laplacian_governor x momentum_dampener via geom)",
+        "regime": "Stochastic Pure (laplacian_governor)",
         "primary_archetype": "laplacian_governor",
-        "secondary_archetype": "momentum_dampener",
-        "blend_op": "geom",
-        "nonlinearity": "tanh+gauss",
-        "reward_modulation": "jnp.abs(jnp.exp(-jnp.square(jnp.clip(reward_jax, -3.0, 3.0))))",
-        "edge_weight": 1.272966,
-        "safety_ratio": 1.431876,
-        "factor_ceiling": 3.538284,
-        "step_scale": 0.107585,
-        "threshold_bias": 1.267984
+        "secondary_archetype": "None",
+        "blend_op": "none",
+        "nonlinearity": "tanh",
+        "reward_modulation": "reward_jax",
+        "edge_weight": 0.940774,
+        "safety_ratio": 0.611969,
+        "factor_ceiling": 5.291178,
+        "step_scale": 0.293847,
+        "threshold_bias": 1.108989
     }
 }
 
@@ -3808,16 +3814,12 @@ def execute_extension_pass(v, reward, lr):
         v_jax = jnp.array(v_val, dtype=jnp.float32)
         lapvec_factor_a = jnp.array([v_val, -v_val, r_val, -r_val], dtype=jnp.float32)
         lapvec_factor_a = lapvec_factor_a / (jnp.linalg.norm(lapvec_factor_a) + 1e-8)
-        lapstep_factor_a = lapvec_factor_a - 0.5 * (jnp.roll(lapvec_factor_a, -1) + jnp.roll(lapvec_factor_a, 1)) * 1.2730
+        lapstep_factor_a = lapvec_factor_a - 0.5 * (jnp.roll(lapvec_factor_a, -1) + jnp.roll(lapvec_factor_a, 1)) * 0.9408
         ritz_factor_a = jnp.dot(lapvec_factor_a, lapstep_factor_a) / (jnp.dot(lapvec_factor_a, lapvec_factor_a) + 1e-8)
-        factor_a = jnp.clip(jnp.abs(jnp.tanh(ritz_factor_a)), 0.05, 3.538)
-        trackerr_factor_b = jnp.abs(v_jax - reward_jax)
-        regular_factor_b = jnp.maximum(1e-5, trackerr_factor_b * lr_val)
-        hessian_factor_b = 1.0 + regular_factor_b * jnp.square(v_jax - reward_jax)
-        factor_b = jnp.clip(jnp.abs(jnp.exp(-jnp.square(jnp.clip(1.0 / (hessian_factor_b + 1e-8), -3.0, 3.0)))), 0.05, 3.538)
-        factor = jnp.clip(jnp.sqrt(jnp.abs(factor_a * factor_b) + 1e-8), 0.01, 3.538)
-        step_delta = factor * lr_val * v_val * jnp.abs(jnp.exp(-jnp.square(jnp.clip(reward_jax, -3.0, 3.0)))) * 0.1076
-        ceiling = float(np.maximum(12.0, jnp.abs(v_val) * 2.928))
+        factor_a = jnp.clip(jnp.abs(jnp.tanh(ritz_factor_a)), 0.05, 5.291)
+        factor = jnp.clip(factor_a, 0.01, 5.291)
+        step_delta = factor * lr_val * v_val * reward_jax * 0.2938
+        ceiling = float(np.maximum(12.0, jnp.abs(v_val) * 1.881))
         return float(np.clip(v_val + float(step_delta), 0.1, ceiling))
     except Exception: return v
 

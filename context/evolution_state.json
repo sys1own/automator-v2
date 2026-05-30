@@ -1,5 +1,5 @@
 {
-    "global_generation": 90,
+    "global_generation": 91,
     "best_velocity": 102.2951,
     "mutation_history": [
         {
@@ -420,7 +420,13 @@
             "generation": 90,
             "timestamp": 1780152434.0733216,
             "velocity": 102.1112,
-            "action": "Successfully spawned purposed module extension: ext_momentum_dampener_gen_90_1780152423.py"
+            "action": "PRUNED due to performance degradation (Velocity: 101.4599)"
+        },
+        {
+            "generation": 91,
+            "timestamp": 1780152732.0520167,
+            "velocity": 101.4599,
+            "action": "Successfully spawned purposed module extension: ext_hybrid_momentum_laplacian_gen_91_1780152721.py"
         }
     ],
     "active_parameters": {

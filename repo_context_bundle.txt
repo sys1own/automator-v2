@@ -949,19 +949,19 @@ if __name__ == '__main__':
 
 --- FILE: context/automator_execution.log ---
 [MVCC] Snapshot Registry Active | Logic: Lock-Free Read / CAS Write
---- Framework Active | Gated MoE over 14 Evolved Experts ---
-Round 1/3000 | Velocity: 5.2626
-Round 500/3000 | Velocity: 528.1836
-Round 1000/3000 | Velocity: 513.9247
-Round 1500/3000 | Velocity: 525.9418
-Round 2000/3000 | Velocity: 514.3896
-Round 2500/3000 | Velocity: 516.2858
-Round 3000/3000 | Velocity: 528.5004
+--- Framework Active | Gated MoE over 15 Evolved Experts ---
+Round 1/3000 | Velocity: 5.1415
+Round 500/3000 | Velocity: 522.0675
+Round 1000/3000 | Velocity: 502.7682
+Round 1500/3000 | Velocity: 503.3447
+Round 2000/3000 | Velocity: 527.2197
+Round 2500/3000 | Velocity: 525.8291
+Round 3000/3000 | Velocity: 529.1323
 
 
 --- FILE: context/evolution_state.json ---
 {
-    "global_generation": 130,
+    "global_generation": 131,
     "best_velocity": 531.4116,
     "mutation_history": [
         {
@@ -1623,6 +1623,12 @@ Round 3000/3000 | Velocity: 528.5004
             "timestamp": 1780165797.0308545,
             "velocity": 528.5004,
             "action": "Successfully spawned purposed module extension: ext_telemetry_compactor_gen_130_1780165784.py"
+        },
+        {
+            "generation": 131,
+            "timestamp": 1780166135.5696905,
+            "velocity": 529.1323,
+            "action": "Spawned extension rejected by verification gates."
         }
     ],
     "active_parameters": {

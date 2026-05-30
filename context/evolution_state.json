@@ -1,5 +1,5 @@
 {
-    "global_generation": 123,
+    "global_generation": 124,
     "best_velocity": 531.1097,
     "mutation_history": [
         {
@@ -618,7 +618,13 @@
             "generation": 123,
             "timestamp": 1780163440.7628915,
             "velocity": 526.5378,
-            "action": "Successfully spawned purposed module extension: ext_laplacian_governor_gen_123_1780163428.py"
+            "action": "PRUNED due to performance degradation (Velocity: 510.1349)"
+        },
+        {
+            "generation": 124,
+            "timestamp": 1780163776.540813,
+            "velocity": 510.1349,
+            "action": "Successfully spawned purposed module extension: ext_hybrid_laplacian_telemetry_gen_124_1780163764.py"
         }
     ],
     "active_parameters": {

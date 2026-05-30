@@ -1,5 +1,5 @@
 {
-    "global_generation": 125,
+    "global_generation": 126,
     "best_velocity": 531.1097,
     "mutation_history": [
         {
@@ -630,6 +630,12 @@
             "generation": 125,
             "timestamp": 1780164113.7238069,
             "velocity": 502.7446,
+            "action": "Spawned extension rejected by verification gates."
+        },
+        {
+            "generation": 126,
+            "timestamp": 1780164449.7572932,
+            "velocity": 521.2586,
             "action": "Spawned extension rejected by verification gates."
         }
     ],

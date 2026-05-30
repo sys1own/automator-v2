@@ -422,7 +422,7 @@ def run_generation():
     try:
         subprocess.run(['git', 'add', 'src/extensions/', 'context/', 'repo_context_bundle.txt'], check=True, env=env)
         subprocess.run(['git', 'commit', '-m', f"evolution(core): generation {gen_id} structured state sync"], check=True, env=env)
-        subprocess.run(['git', 'push', 'origin', 'main'], check=True, env=env)
+        subprocess.run(['git', 'push', 'origin', 'HEAD'], check=True, env=env)
         print(f"[Git Sync] Generation {gen_id} extensions cleanly pushed to remote origin.")
     except Exception as git_err:
         print(f"[Git Sync Warning] Skipping automatic repository upstream push: {git_err}")

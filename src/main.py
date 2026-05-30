@@ -151,12 +151,12 @@ class ExpertGate:
         return new_velocity
 
     def _archive_underperformers(self, baseline_velocity):
-        floor = ARCHIVE_VELOCITY_FRACTION * baseline_velocity
         survivors = []
         for e in self.experts:
             st = self.state[e["key"]]
-            if (st["evals"] >= MIN_EVAL_WINDOW and st["vel_ema"] is not None
-                    and st["vel_ema"] < floor):
+            # Base archival safety on the structural performance score credit dropping,
+            # or a true flatline below baseline margin, avoiding warm-up EMA lag penalties.
+            if st["evals"] >= MIN_EVAL_WINDOW and st["score"] < 0.15:
                 self._archive(e, st)
             else:
                 survivors.append(e)
